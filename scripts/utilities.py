@@ -4,10 +4,7 @@ import numpy as np
 from stockfish import Stockfish
 import random
 from tqdm import tqdm
-from tensorflow.keras import datasets, models
-from tensorflow.keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, ReLU, Add, BatchNormalization
-import tensorflow.keras.utils as utils
-from tensorflow.keras.callbacks import CSVLogger
+from keras.layers import Conv2D, ReLU, Add, BatchNormalization
 
 # allocate stockfish engine and specify parameters
 stockfish = Stockfish("/usr/local/Cellar/stockfish/15/bin/stockfish")
@@ -52,7 +49,7 @@ def board_int(board):
     board_arr = board_arr.tolist()
     return(board_arr)
 
-def board_score(board, time_limit = 0.01):
+def board_score(board, depth = 5):
     """Evaluates the score of a board for player white based on stockfish.
 
     Args:
@@ -63,8 +60,8 @@ def board_score(board, time_limit = 0.01):
         int: stockfish score of the input board
     """
     engine = chess.engine.SimpleEngine.popen_uci("/usr/local/Cellar/stockfish/15/bin/stockfish")
-    result = engine.analyse(board, chess.engine.Limit(time = time_limit))
-    score = result['score'].white().score()
+    result = engine.analyse(board, chess.engine.Limit(depth = depth))
+    score = result["score"].white().score()
     engine.quit()
     return(score)
 
