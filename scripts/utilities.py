@@ -49,7 +49,7 @@ def board_int(board):
     board_arr = board_arr.tolist()
     return(board_arr)
 
-def board_score(board, depth = 5):
+def board_score(board, depth = 20):
     """Evaluates the score of a board for player white based on stockfish.
 
     Args:
@@ -61,15 +61,15 @@ def board_score(board, depth = 5):
     """
     engine = chess.engine.SimpleEngine.popen_uci("/usr/local/Cellar/stockfish/15/bin/stockfish")
     result = engine.analyse(board, chess.engine.Limit(depth = depth))
-    score = result["score"].white().score()
+    score = result["score"].white().score(mate_score = 15000)
     engine.quit()
     return(score)
 
-def boards_random(num_games):
+def boards_random(num_boards):
     """Creates random boards by playing games with random moves
 
     Args:
-        num_games (int): number of games being played
+        num_boards (int): number of baords being created
 
     Returns:
         list: (N,) list including all the randomly generated boards N while playing the games
@@ -78,17 +78,20 @@ def boards_random(num_games):
     boards_random_int = []
     boards_random_score = []
 
-    for _ in tqdm(range(num_games)):
+    for _ in tqdm(range(num_boards)):
         board = chess.Board()
-        while True:
+        depth = random.randrange(1, 101) # max number of moves: 100
+        for _ in range(depth):
             all_moves = list(board.legal_moves)
             random_move = random.choice(all_moves)
             board.push(random_move)
-            boards_random_fen.append(board.copy())
-            boards_random_int.append(board_int(board.copy()))
-            boards_random_score.append(board_score(board.copy()))
             if board.is_game_over():
                 break
+
+        boards_random_fen.append(board.copy())
+        boards_random_int.append(board_int(board.copy()))
+        boards_random_score.append(board_score(board.copy()))
+
     return(boards_random_fen, boards_random_int, boards_random_score)
 
 def ResBlock(z, kernelsizes, filters, increase_dim = False):
