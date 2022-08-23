@@ -7,11 +7,11 @@ import os
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 10
+number_runs = 1
 for run in range(number_runs):
     # create random chess boards in "chess" and integer format
     start = time.time()
-    boards_random_fen, boards_random_int, boards_random_score = boards_random(num_games = 100)
+    boards_random_fen, boards_random_int, boards_random_score = boards_random(num_boards = 10)
 
     df1 = pd.DataFrame({"boards (FEN)": boards_random_fen})
     df2 = pd.DataFrame({"boards (int)": boards_random_int})
