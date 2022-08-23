@@ -1,5 +1,5 @@
 import numpy as np
-from tensorflow.keras import models
+from keras import models
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -7,7 +7,13 @@ from matplotlib.colors import ListedColormap
 import os
 
 # load data
-table = pd.read_hdf("data/data.h5", key = "table")
+num_runs = 6
+table = pd.DataFrame()
+for run in range(num_runs):
+    print(f"Loading data run {run}...")
+    table_run = pd.read_hdf(f"data/data{run}.h5", key = "table")
+    frame = [table, table_run]
+    table = pd.concat(frame)
 table = table.dropna().reset_index()
 
 X = table["boards (int)"].values.tolist()
