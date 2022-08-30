@@ -1,0 +1,13 @@
+# the following files/folders are not uploaded to git
+__pycache__
+scripts/test.py
+data/
+evaluation/
+games/
+history/
+logo/
+model/
+
+.DS_Store
+.git/
+
