@@ -1,0 +1,8 @@
+chess==1.9.2
+chessboard==1.5.4
+keras==2.9.0
+matplotlib==3.5.3
+numpy==1.23.2
+pandas==1.4.3
+stockfish==3.28.0
+tqdm==4.64.0
