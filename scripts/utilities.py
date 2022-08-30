@@ -5,9 +5,12 @@ from stockfish import Stockfish
 import random
 from tqdm import tqdm
 from keras.layers import Conv2D, ReLU, Add, BatchNormalization
+import os 
+
+stockfish_path = os.environ.get("STOCKFISHPATH")
 
 # allocate stockfish engine and specify parameters
-stockfish = Stockfish("/usr/local/Cellar/stockfish/15/bin/stockfish")
+stockfish = Stockfish(stockfish_path)
 stockfish.set_depth(20)
 stockfish.set_skill_level(20)
 
@@ -49,7 +52,7 @@ def board_int(board):
     board_arr = board_arr.tolist()
     return(board_arr)
 
-def board_score(board, depth = 20):
+def board_score(board, depth = 15):
     """Evaluates the score of a board for player white based on stockfish.
 
     Args:
@@ -59,7 +62,7 @@ def board_score(board, depth = 20):
     Returns:
         int: stockfish score of the input board
     """
-    engine = chess.engine.SimpleEngine.popen_uci("/usr/local/Cellar/stockfish/15/bin/stockfish")
+    engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board, chess.engine.Limit(depth = depth))
     score = result["score"].white().score(mate_score = 15000)
     engine.quit()
