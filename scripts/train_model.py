@@ -9,7 +9,7 @@ import os
 import time
 
 # load data
-num_runs = 40
+num_runs = 45
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
@@ -56,7 +56,7 @@ model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
 # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512])
 
 model = GlobalMaxPooling2D()(model)
-model = Flatten()(model)
+# model = Flatten()(model)
 model = Dense(64, activation = "relu")(model)
 model = Dense(1, name = "score")(model)
 
