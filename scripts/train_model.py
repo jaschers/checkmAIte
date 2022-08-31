@@ -1,5 +1,5 @@
 import numpy as np
-from utilities import *
+from utilities_keras import *
 from keras import models
 from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input
 import keras.utils as utils
@@ -7,10 +7,9 @@ from keras.callbacks import CSVLogger
 import pandas as pd
 import os
 import time
-from keras.applications import ResNet50
 
 # load data
-num_runs = 35
+num_runs = 40
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
@@ -101,3 +100,27 @@ os.makedirs("history/", exist_ok = True)
 model.fit(X_train, Y_train, epochs = 15, batch_size = 32, validation_data=(X_val, Y_val), callbacks = [CSVLogger("history/history.csv")])
 
 model.save("model/model.h5")
+
+# save model predictions on training an validation data
+os.makedirs("prediction/", exist_ok = True)
+
+prediction_train = model.predict(X_train)
+prediction_train = np.reshape(prediction_train, (np.shape(prediction_train)[0]))
+
+prediction_val = model.predict(X_val)
+prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
+
+table_pred_train = pd.DataFrame({"prediction": prediction_train})
+table_true_train = pd.DataFrame({"true score": Y_train})
+
+table_pred_val = pd.DataFrame({"prediction": prediction_val})
+table_true_val = pd.DataFrame({"true score": Y_val})
+
+table_pred_train = pd.concat([table_pred_train, table_true_train], axis = 1)
+table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
+
+print(table_pred_train)
+print(table_pred_val)
+
+table_pred_train.to_hdf(f"prediction/prediction_train.h5", key = "table")
+table_pred_val.to_hdf(f"prediction/prediction_val.h5", key = "table")
