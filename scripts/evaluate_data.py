@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd
 import time
-# from chessboard import display
+from chessboard import display
 import matplotlib.pyplot as plt
 import os
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
 # load data
-num_runs = 35
+num_runs = 1
 table = pd.DataFrame()
 for run in range(num_runs):
     # run = 2 #2
@@ -54,12 +54,12 @@ plt.tight_layout()
 plt.savefig("evaluation/data/score_distribution.pdf")
 # plt.show()
 
-# argmin = table["score"].idxmin()
-# min = table["score"].iloc[argmin]
-# print(min)
-# board = table["boards (FEN)"].iloc[argmin]
+argmin = table["score"].idxmin()
+min = table["score"].iloc[argmin]
+print(min)
+board = table["boards (FEN)"].iloc[argmin]
 
-# display.start(board.fen())
+display.start(board.fen())
 
-# while True:
-#     pass
+while True:
+    pass
