@@ -7,6 +7,7 @@ games/
 history/
 logo/
 model/
+prediction/
 
 .DS_Store
 .git/
