@@ -4,12 +4,28 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LogNorm
 import os
+import argparse
+
+######################################## argparse setup ########################################
+script_descr="""
+Evaluates the residual neural network
+"""
+
+# Open argument parser
+parser = argparse.ArgumentParser(description=script_descr)
+
+# Define expected arguments
+parser.add_argument("-na", "--name", type = str, required = False, metavar = "-", help = "Name of this particular experiment")
+
+args = parser.parse_args()
+##########################################################################################
+
 
 # load data
 print("Loading training data...")
-table_train = pd.read_hdf("prediction/prediction_train.h5", key = "table")
+table_train = pd.read_hdf(f"prediction/prediction_train_{args.name}.h5", key = "table")
 print("Loading validation data...")
-table_val = pd.read_hdf("prediction/prediction_val.h5", key = "table")
+table_val = pd.read_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
 
 prediction_train = table_train["prediction"] * 15000
 true_score_train = table_train["true score"] * 15000
@@ -17,9 +33,9 @@ true_score_train = table_train["true score"] * 15000
 prediction_val = table_val["prediction"] * 15000
 true_score_val = table_val["true score"] * 15000
 
-history = pd.read_csv("history/history.csv")
+history = pd.read_csv(f"history/history_{args.name}.csv")
 
-os.makedirs("evaluation/", exist_ok = True)
+os.makedirs(f"evaluation/{args.name}/", exist_ok = True)
 
 print("Plotting history...")
 plt.figure()
@@ -29,7 +45,7 @@ plt.xlabel("Epoch")
 plt.ylabel("Loss")
 # plt.show()
 plt.tight_layout()
-plt.savefig("evaluation/history.pdf")
+plt.savefig(f"evaluation/{args.name}/history_{args.name}.pdf")
 plt.close()
 
 viridis = cm.get_cmap('viridis', 256)
@@ -48,7 +64,7 @@ plt.ylim(np.min(true_score_val), np.max(true_score_val))
 plt.xlabel("True score")
 plt.ylabel("Predicted score")
 plt.tight_layout()
-plt.savefig("evaluation/2Dscattering_val.pdf")
+plt.savefig(f"evaluation/{args.name}/2Dscattering_val_{args.name}.pdf")
 # plt.show()
 plt.close()
 
@@ -61,7 +77,7 @@ plt.ylim(np.min(true_score_train), np.max(true_score_train))
 plt.xlabel("True score")
 plt.ylabel("Predicted score")
 plt.tight_layout()
-plt.savefig("evaluation/2Dscattering_train.pdf")
+plt.savefig(f"evaluation/{args.name}/2Dscattering_train_{args.name}.pdf")
 # plt.show()
 plt.close()
 
