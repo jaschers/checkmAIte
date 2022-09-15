@@ -6,6 +6,7 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
     # https://towardsdatascience.com/understanding-and-coding-a-resnet-in-keras-446d7ff84d33
 
     z_shortcut = z
+    # z_shortcut = BatchNormalization()(z_shortcut)
     kernelsize_1, kernelsize_2 = kernelsizes
     filters_1, filters_2 = filters
 
@@ -25,6 +26,7 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
         # z_shortcut = BatchNormalization()(z_shortcut)
 
     out = Add()([fz, z_shortcut])
+    # out = BatchNormalization()(out)
     out = ReLU()(out)
     # out = MaxPooling2D(pool_size=(3, 3), strides = 1)(out)
     
