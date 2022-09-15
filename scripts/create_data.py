@@ -8,9 +8,9 @@ import numpy as np
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 35
+number_runs = 60
 for run in range(number_runs):
-    # run = run + 36
+    # run = run + 50
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
     start = time.time()
