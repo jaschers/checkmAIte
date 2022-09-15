@@ -1,15 +1,32 @@
 import numpy as np
 from utilities_keras import *
-from keras import models
-from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input
+from keras import models, optimizers
+from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input, BatchNormalization, Add, Activation
 import keras.utils as utils
 from keras.callbacks import CSVLogger
 import pandas as pd
 import os
 import time
+import argparse
+
+######################################## argparse setup ########################################
+script_descr="""
+Trains the residual neural network
+"""
+
+# Open argument parser
+parser = argparse.ArgumentParser(description=script_descr)
+
+# Define expected arguments
+parser.add_argument("-na", "--name", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
+parser.add_argument("-e", "--epochs", type = int, required = True, metavar = "-", help = "Number of epochs for the training")
+
+args = parser.parse_args()
+##########################################################################################
+
 
 # load data
-num_runs = 45
+num_runs = 59
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
@@ -50,14 +67,13 @@ model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64], incr
 model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64])
 model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128], increase_dim = True)
 model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256], increase_dim = True)
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256])
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256], increase_dim = True)
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256])
 # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512], increase_dim = True)
 # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512])
-
-model = GlobalMaxPooling2D()(model)
-# model = Flatten()(model)
-model = Dense(64, activation = "relu")(model)
+# model = ResBlock(model,)GlobalMaxPooling2D()(model)
+model = Flatten()(model)
+model = Dense(128, activation = "relu")(model)
 model = Dense(1, name = "score")(model)
 
 # # define model
@@ -86,20 +102,54 @@ model = Dense(1, name = "score")(model)
 # model = Conv2D(3, (3, 3), activation = "relu", padding = "same")(model_input)
 # model = ResNet50()(model)
 
+
+# # digital secrets CNN model
+# model_input = Input(shape = X_shape[1:])
+# model = Conv2D(filters=32, kernel_size=3, padding='same', activation='relu')(model_input)
+# for _ in range(3):
+#     model = Conv2D(filters=32, kernel_size=3, padding='same', activation='relu')(model)
+# model = Flatten()(model)
+# model = Dense(64, 'relu')(model)
+# model = Dense(1)(model)
+
+# # digital secrets ResNet model
+# model_input = Input(shape = X_shape[1:])
+# model = Conv2D(filters=32, kernel_size=3, padding='same')(model_input)
+# for _ in range(4):
+#     previous = model
+#     model = Conv2D(filters=32, kernel_size=3, padding='same')(model)
+#     #model = BatchNormalization()(model)
+#     model = Activation('relu')(model)
+#     model = Conv2D(filters=32, kernel_size=3, padding='same')(model)
+#     #model = BatchNormalization()(model)
+#     model = Add()([model, previous])
+#     model = Activation('relu')(model)
+# model = Flatten()(model)
+# model = Dense(1)(model)
+
+
 model = models.Model(inputs = model_input, outputs = model)
 model.summary()
 
 os.makedirs("model/", exist_ok = True)
 # utils.plot_model(model, to_file = "model/model.pdf", show_shapes = True, show_layer_names = False)
 
+# # add a decaying learning rate
+# lr_schedule = optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9)
+# optimizer = optimizers.SGD(learning_rate=lr_schedule)
+
+# # compile model
+# model.compile(optimizer = optimizer,
+#               loss="mse")
+
 # compile model
 model.compile(optimizer = "adam",
               loss="mse")
 
 os.makedirs("history/", exist_ok = True)
-model.fit(X_train, Y_train, epochs = 15, batch_size = 32, validation_data=(X_val, Y_val), callbacks = [CSVLogger("history/history.csv")])
+model.fit(X_train, Y_train, epochs = args.epochs, batch_size = 32, validation_data=(X_val, Y_val), callbacks = [CSVLogger(f"history/history_{args.name}.csv")])
 
-model.save("model/model.h5")
+model.save(f"model/model_{args.name}.h5")
 
 # save model predictions on training an validation data
 os.makedirs("prediction/", exist_ok = True)
@@ -122,5 +172,5 @@ table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
 print(table_pred_train)
 print(table_pred_val)
 
-table_pred_train.to_hdf(f"prediction/prediction_train.h5", key = "table")
-table_pred_val.to_hdf(f"prediction/prediction_val.h5", key = "table")
+table_pred_train.to_hdf(f"prediction/prediction_train_{args.name}.h5", key = "table")
+table_pred_val.to_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
