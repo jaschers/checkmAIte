@@ -9,6 +9,7 @@ logo/
 model/
 prediction/
 literature/
+digital_secrets/
 
 .DS_Store
 .git/
