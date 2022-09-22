@@ -8,23 +8,28 @@ import numpy as np
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 60
+number_runs = 30 # 60
 for run in range(number_runs):
-    # run = run + 50
+    run = run + 0
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
     start = time.time()
-    boards_random_fen, boards_random_int, boards_random_score = boards_random(num_boards = 20000)
+    boards_random_int, boards_random_score = boards_random(num_boards = 10) #10000
 
-    df1 = pd.DataFrame({"boards (FEN)": boards_random_fen})
-    df2 = pd.DataFrame({"boards (int)": boards_random_int})
-    df3 = pd.DataFrame({"score": boards_random_score})
+    df1 = pd.DataFrame({"board3d (int)": boards_random_int})
+    df2 = pd.DataFrame({"score": boards_random_score})
 
-    table = pd.concat([df1, df2, df3], axis = 1)
+    table = pd.concat([df1, df2], axis = 1)
 
-    os.makedirs("data/", exist_ok = True)
+    print(table)
 
-    table.to_hdf(f"data/data{run}.h5", key = "table")
+    os.makedirs("data/3d/", exist_ok = True)
+
+    table.to_hdf(f"data/3d/data{run}.h5", key = "table")
+
+    print(table)
+    print(table["board3d (int)"][0])
+    print(np.array(table["board3d (int)"][0]))
 
     end = time.time()
     print(f"Processing time for run {run}:", np.round((end - start) / 60 / 60, 2), "hours")
