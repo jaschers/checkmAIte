@@ -164,13 +164,12 @@ def boards_random(num_boards):
     Returns:
         list: (N,) list including all the randomly generated boards N while playing the games
     """
-    boards_random_fen = []
     boards_random_int = []
     boards_random_score = []
 
     for _ in tqdm(range(num_boards)):
         board = chess.Board()
-        depth = random.randrange(1, 101) # max number of moves: 100
+        depth = random.randrange(0, 101) # max number of moves: 100
         for _ in range(depth):
             all_moves = list(board.legal_moves)
             random_move = random.choice(all_moves)
@@ -178,8 +177,7 @@ def boards_random(num_boards):
             if board.is_game_over():
                 break
 
-        boards_random_fen.append(board.copy())
-        boards_random_int.append(board_int(board.copy()))
+        boards_random_int.append(board_3d_attack_int(board.copy()))
         boards_random_score.append(board_score(board.copy()))
 
-    return(boards_random_fen, boards_random_int, boards_random_score)
+    return(boards_random_int, boards_random_score)
