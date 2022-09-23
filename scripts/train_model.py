@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import time
 import argparse
+import matplotlib.pyplot as plt
 
 ######################################## argparse setup ########################################
 script_descr="""
@@ -26,7 +27,7 @@ args = parser.parse_args()
 
 
 # load data
-num_runs = 14
+num_runs = 10
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
@@ -36,7 +37,7 @@ for run in range(num_runs):
     frame = [table, table_run]
     table = pd.concat(frame)
     end = time.time()
-    print(f"Data run {run} loaded within {np.round(middle-start)} sec...")
+    print(f"Data run {run} loaded within {np.round(middle-start, 1)} sec...")
 
 table = table.reset_index(drop = True)
 print(table)
@@ -51,8 +52,14 @@ X = np.moveaxis(X, 1, -1)
 X_shape = np.shape(X)
 
 # norm Y data between -1 and 1
-Y_max = np.min(Y)
-Y = Y / Y_max
+print(np.min(Y), np.max(Y))
+# Y_max = np.max(Y)
+# Y = Y / Y_max
+# Y = np.asarray(Y / abs(np.asarray(Y)).max() / 2 + 0.5, dtype=np.float32)
+Y = Y - np.min(Y)
+Y = Y / np.max(Y)
+print(np.min(Y), np.max(Y))
+
 
 X_train, X_val, X_test = np.split(X, [-int(len(X) / 5), -int(len(X) / 10)]) 
 Y_train, Y_val, Y_test = np.split(Y, [-int(len(X) / 5), -int(len(Y) / 10)]) 
@@ -61,21 +68,21 @@ Y_train, Y_val, Y_test = np.split(Y, [-int(len(X) / 5), -int(len(Y) / 10)])
 # print(np.shape(Y_train), np.shape(Y_val), np.shape(Y_test))
 print("Number of training, validation and test data:", len(X_train), len(X_val), len(X_test))
 
-# # define model
-# model_input = Input(shape = X_shape[1:])
-# model = Conv2D(16, kernel_size = (3, 3), activation = "relu", padding = "same")(model_input)
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64], increase_dim = True)
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64])
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128], increase_dim = True)
-# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
-# # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256], increase_dim = True)
-# # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256])
-# # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512], increase_dim = True)
-# # model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512])
-# # model = ResBlock(model,)GlobalMaxPooling2D()(model)
-# model = Flatten()(model)
-# model = Dense(128, activation = "relu")(model)
-# model = Dense(1, name = "score")(model)
+# define model
+model_input = Input(shape = X_shape[1:])
+model = Conv2D(16, kernel_size = (3, 3), activation = "relu", padding = "same")(model_input)
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64], increase_dim = True)
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64])
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128], increase_dim = True)
+model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
+# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256], increase_dim = True)
+# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [128, 256])
+# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512], increase_dim = True)
+# model = ResBlock(model, kernelsizes = [(1, 1), (3, 3)], filters = [256, 512])
+# model = ResBlock(model,)GlobalMaxPooling2D()(model)
+model = Flatten()(model)
+model = Dense(128, activation = "relu")(model)
+model = Dense(1, name = "score")(model)
 
 # # define model
 # model_input = Input(shape = X_shape[1:])
@@ -103,15 +110,22 @@ print("Number of training, validation and test data:", len(X_train), len(X_val),
 # model = Conv2D(3, (3, 3), activation = "relu", padding = "same")(model_input)
 # model = ResNet50()(model)
 
+# # digital secrets CNN model
+# model_input = Input(shape = X_shape[1:])
+# def build_model(conv_size, conv_depth):
+#   board3d = Input(shape=(8, 8, 24)) #shape=(14, 8, 8)
 
-# digital secrets CNN model
-model_input = Input(shape = X_shape[1:])
-model = Conv2D(filters=32, kernel_size=3, padding="same", activation="relu")(model_input)
-for _ in range(3):
-    model = Conv2D(filters=32, kernel_size=3, padding="same", activation="relu")(model)
-model = Flatten()(model)
-model = Dense(64, "relu")(model)
-model = Dense(1)(model)
+#   # adding the convolutional layers
+#   x = board3d
+#   for _ in range(conv_depth):
+#     x = Conv2D(filters=conv_size, kernel_size=3, padding="same", activation="relu")(x) #data_format="channels_first"
+#   x = Flatten()(x)
+#   x = Dense(64, "relu")(x)
+#   x = Dense(1, "sigmoid")(x)
+
+#   return models.Model(inputs=board3d, outputs=x)
+
+# model = build_model(32, 4)
 
 # # digital secrets ResNet model
 # model_input = Input(shape = X_shape[1:])
