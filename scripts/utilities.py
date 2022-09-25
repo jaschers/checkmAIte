@@ -58,6 +58,87 @@ def board_int(board):
     board_arr = board_arr.tolist()
     return(board_arr)
 
+# def board_3d_attack_int(board):
+#     """converts chess board into 3D (24, 8, 8) array with board[i] representing:
+#     0: all squares covered by white pawn
+#     1: all squares covered by white knight
+#     2: all squares covered by white bishop
+#     3: all squares covered by white rook
+#     4: all squares covered by white queen
+#     5: all squares covered by white king
+#     6: all squares covered by black pawn
+#     7: all squares covered by black knight
+#     8: all squares covered by black bishop
+#     9: all squares covered by black rook
+#     10: all squares covered by black queen
+#     11: all squares covered by black king
+#     12: all squares being attacked by white pawn
+#     13: all squares being attacked by white knight
+#     14: all squares being attacked by white bishop
+#     15: all squares being attacked by white rook
+#     16: all squares being attacked by white queen
+#     17: all squares being attacked by white king
+#     18: all squares being attacked by black pawn
+#     19: all squares being attacked by black knight
+#     20: all squares being attacked by black bishop
+#     21: all squares being attacked by black rook
+#     22: all squares being attacked by black queen
+#     23: all squares being attacked by black king
+
+#     Args:
+#         board (chess.Board): chess board
+
+#     Returns:
+#         list: (24, 8, 8) list of the input board with {1,0} int values
+#     """
+#     # initialise board array
+#     number_boards = 24 
+#     board_arr = np.zeros((number_boards, 8, 8), dtype = int)
+
+#     # for loop over all piece types (pawn, knight, ...)
+#     for piece in chess.PIECE_TYPES:
+#         # for loop over all squares of white pieces
+#         for square in board.pieces(piece, chess.WHITE):
+#             # get indices of the individual piece
+#             board_index = square_to_index(square)
+#             # fill array at board_index with piece value for each piece
+#             board_arr[piece - 1][board_index[0]][board_index[1]] = 1
+
+#         # for loop over all squares of black pieces
+#         for square in board.pieces(piece, chess.BLACK):
+#             # get indices of the individual piece
+#             board_index = square_to_index(square)
+#             # fill array at board_index with piece value for each piece
+#             board_arr[piece - 1 + 6][board_index[0]][board_index[1]] = 1
+
+
+#     # add attacks from each pice to an individual 8x8 subarray
+#     board.turn = chess.WHITE
+#     for valid_move in board.legal_moves:
+#         # get piece type that's making the move
+#         piece_type = board.piece_type_at(valid_move.from_square)
+#         # get square number that is being attacked
+#         square = valid_move.to_square
+#         # convert square number into index for (8,8) board
+#         board_index = square_to_index(square)
+#         # add +1 to the attacked square in the board_arr of corresponding piece type
+#         board_arr[piece_type - 1 + 12][board_index[0]][board_index[1]] += 1
+
+#     board.turn = chess.BLACK
+#     for valid_move in board.legal_moves:
+#         # get piece type that's making the move
+#         piece_type = board.piece_type_at(valid_move.from_square)
+#         # get square number that is being attacked
+#         square = valid_move.to_square
+#         # convert square number into index for (8,8) board
+#         board_index = square_to_index(square)
+#         # add +1 to the attacked square in the board_arr of corresponding piece type
+#         board_arr[piece_type - 1 + 18][board_index[0]][board_index[1]] += 1
+
+#     # board_arr = board_arr.flatten()
+#     board_arr = board_arr.tolist()
+#     return(board_arr)
+
 def board_3d_attack_int(board):
     """converts chess board into 3D (24, 8, 8) array with board[i] representing:
     0: all squares covered by white pawn
@@ -92,7 +173,7 @@ def board_3d_attack_int(board):
         list: (24, 8, 8) list of the input board with {1,0} int values
     """
     # initialise board array
-    number_boards = 24 
+    number_boards = 14 
     board_arr = np.zeros((number_boards, 8, 8), dtype = int)
 
     # for loop over all piece types (pawn, knight, ...)
@@ -122,7 +203,7 @@ def board_3d_attack_int(board):
         # convert square number into index for (8,8) board
         board_index = square_to_index(square)
         # add +1 to the attacked square in the board_arr of corresponding piece type
-        board_arr[piece_type - 1 + 12][board_index[0]][board_index[1]] += 1
+        board_arr[12][board_index[0]][board_index[1]] = 1
 
     board.turn = chess.BLACK
     for valid_move in board.legal_moves:
@@ -133,7 +214,7 @@ def board_3d_attack_int(board):
         # convert square number into index for (8,8) board
         board_index = square_to_index(square)
         # add +1 to the attacked square in the board_arr of corresponding piece type
-        board_arr[piece_type - 1 + 18][board_index[0]][board_index[1]] += 1
+        board_arr[13][board_index[0]][board_index[1]] = 1
 
     # board_arr = board_arr.flatten()
     board_arr = board_arr.tolist()
@@ -151,7 +232,7 @@ def board_score(board, depth = 15):
     """
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board, chess.engine.Limit(depth = depth))
-    score = result["score"].white().score(mate_score = 15000)
+    score = result["score"].white().score(mate_score = 11000)
     engine.quit()
     return(score)
 
@@ -169,7 +250,7 @@ def boards_random(num_boards):
 
     for _ in tqdm(range(num_boards)):
         board = chess.Board()
-        depth = random.randrange(0, 101) # max number of moves: 100
+        depth = random.randrange(0, 200) # max number of moves: 100
         for _ in range(depth):
             all_moves = list(board.legal_moves)
             random_move = random.choice(all_moves)
