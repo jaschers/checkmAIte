@@ -27,11 +27,11 @@ table_train = pd.read_hdf(f"prediction/prediction_train_{args.name}.h5", key = "
 print("Loading validation data...")
 table_val = pd.read_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
 
-prediction_train = table_train["prediction"] * 15000
-true_score_train = table_train["true score"] * 15000
+prediction_train = table_train["prediction"]
+true_score_train = table_train["true score"]
 
-prediction_val = table_val["prediction"] * 15000
-true_score_val = table_val["true score"] * 15000
+prediction_val = table_val["prediction"]
+true_score_val = table_val["true score"]
 
 history = pd.read_csv(f"history/history_{args.name}.csv")
 
