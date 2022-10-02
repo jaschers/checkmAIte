@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 # load neural network model
-model = models.load_model("model/model.h5")
+model = models.load_model("model/model_24_8_8_depth15_resnet128.h5")
 
 # initialise game
 board = chess.Board()
@@ -33,21 +33,39 @@ while True:
     valid_moves_str = [valid_moves[i].uci() for i in range(len(valid_moves))]
     print("Valid moves for AI:\n", valid_moves_str)
     valid_boards = []
+    boards_parameters = []
+    stockfish_scores = []
     for i in range(len(valid_moves)):
         board.push(valid_moves[i])
-        valid_boards.append(board_int(board.copy()))
+        valid_boards.append(board_3d_attack_int(board.copy()))
+        boards_parameters.append([np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)])
+
+        result = engine.analyse(board.copy(), chess.engine.Limit(depth = 15))
+        stockfish_score = result["score"].white().score(mate_score = 11000)
+        stockfish_scores.append(stockfish_score)
+
         board.pop()
-    prediction = model.predict(valid_boards, verbose=0) * -15000
-    print("AI all predicted scores: ", prediction)
-    argmax = np.argmax(prediction)
-    best_move = valid_moves[argmax]
-    print("AI move:", best_move)
-    print("AI predicted score:", prediction[argmax])
-    board.push(best_move)
-    result = engine.analyse(board, chess.engine.Limit(depth = 20))
-    score_stockfish = result["score"].white().score()
-    print("Stockfish score:", score_stockfish)
-    print(board)
+
+    valid_boards = np.moveaxis(valid_boards, 1, -1)
+    boards_parameters = np.array(boards_parameters)
+    prediction = model.predict([valid_boards, boards_parameters], verbose=0)
+    # print("AI all predicted scores: ", prediction)
+    argmax_chessai = np.argmax(prediction)
+    best_move_chessai = valid_moves[argmax_chessai]
+    print("AI best move:", best_move_chessai)
+    print("AI predicted score:", prediction[argmax_chessai][0] * 22000 - 11000)
+
+    argmax_stockfish = np.argmax(stockfish_scores)
+    best_move_stockfish = valid_moves[argmax_stockfish]
+    print("Stockfish best move:", best_move_stockfish)
+    print("Stockfish predicted score:", stockfish_scores[argmax_stockfish])
+    print("Stockfish predicted score chessai move:", stockfish_scores[argmax_chessai])
+
+    board.push(best_move_chessai)
+    # result = engine.analyse(board, chess.engine.Limit(depth = 20))
+    # score_stockfish = result["score"].white().score(mate_score = 11000)
+    # print("Stockfish score:", score_stockfish)
+    # print(board)
     print("________________")
     display.start(board.fen())
 
