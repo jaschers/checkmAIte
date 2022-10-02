@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 # load neural network model
-model = models.load_model("model/model_24_8_8_depth15_resnet128.h5")
+model = models.load_model("model/model_24_8_8_depth15_no_cm_resnet128.h5")
 
 # initialise game
 board = chess.Board()
