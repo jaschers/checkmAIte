@@ -8,7 +8,6 @@ import pandas as pd
 import os
 import time
 import argparse
-import matplotlib.pyplot as plt
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -29,7 +28,7 @@ args = parser.parse_args()
 
 
 # load data
-num_runs = 19 #19
+num_runs = 50 #19
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
@@ -110,31 +109,12 @@ print("Number of training, validation and test data:", len(X_board3d_train), len
 # ############################################################################
 
 
-############################################################################
-model_input_board3d = Input(shape = X_board3d_shape[1:])
-model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_input_board3d)
-model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
-model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
-model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
-model_board3d = Flatten()(model_board3d)
-
-model_input_parameter = Input(shape = X_parameter_shape[1:])
-# model_parameter = Dense(128, activation = "relu")(model_input_parameter)
-
-model = Concatenate()([model_board3d, model_input_parameter])
-
-model = Dense(128, activation = "relu")(model)
-model = Dense(64, activation = "relu")(model)
-model = Dense(1, name = "score")(model)
-############################################################################
-
 # ############################################################################
 # model_input_board3d = Input(shape = X_board3d_shape[1:])
-# model_board3d = Conv2D(16, kernel_size = (3, 3), activation = "relu", padding = "same")(model_input_board3d)
-# model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64], increase_dim = True)
-# model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64])
-# model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128], increase_dim = True)
-# model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
+# model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_input_board3d)
+# model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
+# model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
+# model_board3d = Conv2D(32, (3, 3), activation = "relu", padding = "same")(model_board3d)
 # model_board3d = Flatten()(model_board3d)
 
 # model_input_parameter = Input(shape = X_parameter_shape[1:])
@@ -147,13 +127,33 @@ model = Dense(1, name = "score")(model)
 # model = Dense(1, name = "score")(model)
 # ############################################################################
 
+############################################################################
+model_input_board3d = Input(shape = X_board3d_shape[1:])
+model_board3d = Conv2D(16, kernel_size = (3, 3), activation = "relu", padding = "same")(model_input_board3d)
+model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64], increase_dim = True)
+model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [32, 64])
+model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128], increase_dim = True)
+model_board3d = ResBlock(model_board3d, kernelsizes = [(1, 1), (3, 3)], filters = [64, 128])
+model_board3d = Flatten()(model_board3d)
+
+model_input_parameter = Input(shape = X_parameter_shape[1:])
+# model_parameter = Dense(128, activation = "relu")(model_input_parameter)
+
+model = Concatenate()([model_board3d, model_input_parameter])
+
+model = Dense(128, activation = "relu")(model)
+model = Dense(64, activation = "relu")(model)
+model = Dense(1, name = "score")(model)
+############################################################################
+
 model = models.Model(inputs = [model_input_board3d, model_input_parameter], outputs = model)
 model.summary()
 
 os.makedirs("model/", exist_ok = True)
 
 # compile model
-model.compile(optimizer=optimizers.Adam(5e-4), loss="mse")
+# model.compile(optimizer=optimizers.Adam(5e-4), loss="mse")
+model.compile(optimizer = "adam", loss="mse")
 
 os.makedirs("history/", exist_ok = True)
 model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=15, min_delta=1e-4)])
