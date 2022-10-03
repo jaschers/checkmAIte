@@ -11,12 +11,12 @@ np.set_printoptions(threshold=sys.maxsize)
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 20 # 60
+number_runs = 50 # 60
 for run in range(number_runs):
     run = run + 0
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
-    boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score = boards_random(num_boards = 5000) #10000
+    boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score = boards_random(num_boards = 10000) #10000
 
     df1 = pd.DataFrame({"board3d": boards_random_int})
     df2 = pd.DataFrame({"player move": player_move})
@@ -29,8 +29,8 @@ for run in range(number_runs):
     print(table)
     # print(np.array(table["board3d (int)"][0]))
 
-    os.makedirs("data/3d/24_8_8_depth20/", exist_ok = True)
+    os.makedirs("data/3d/24_8_8_depth0_mm100_ms10000/", exist_ok = True)
 
-    table.to_hdf(f"data/3d/24_8_8_depth20/data{run}.h5", key = "table")
+    table.to_hdf(f"data/3d/24_8_8_depth0_mm100_ms10000/data{run}.h5", key = "table")
 
     end = time.time()

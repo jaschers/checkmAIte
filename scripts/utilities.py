@@ -220,7 +220,7 @@ def board_3d_attack_int(board):
 #     board_arr = board_arr.tolist()
 #     return(board_arr)
 
-def board_score(board, depth = 20):
+def board_score(board, depth = 0):
     """Evaluates the score of a board for player white based on stockfish.
 
     Args:
@@ -232,7 +232,7 @@ def board_score(board, depth = 20):
     """
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board, chess.engine.Limit(depth = depth))
-    score = result["score"].white().score(mate_score = 11000)
+    score = result["score"].white().score(mate_score = 10000)
     engine.quit()
     return(score)
 
@@ -253,7 +253,7 @@ def boards_random(num_boards):
 
     for _ in tqdm(range(num_boards)):
         board = chess.Board()
-        depth = random.randrange(0, 200) # max number of moves: 100
+        depth = random.randrange(0, 100) # max number of moves: 100
         for _ in range(depth):
             all_moves = list(board.legal_moves)
             random_move = random.choice(all_moves)
