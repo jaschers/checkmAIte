@@ -13,7 +13,7 @@ np.set_printoptions(threshold=sys.maxsize)
 # set stockfish time limit
 number_runs = 50 # 60
 for run in range(number_runs):
-    run = run + 0
+    run = run + 99
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
     boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score = boards_random(num_boards = 10000) #10000
