@@ -13,6 +13,8 @@ stockfish = Stockfish(stockfish_path)
 stockfish.set_depth(20)
 stockfish.set_skill_level(20)
 
+best_move = None
+
 def square_to_index(square):
     squares = np.linspace(0, 8*8 - 1, 8*8, dtype = int)
     squares_2d = np.reshape(squares, (8,8))
@@ -268,3 +270,122 @@ def boards_random(num_boards):
         boards_random_score.append(np.int16(board_score(board.copy())))
 
     return(boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score)
+
+
+def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
+    if depth < 0 or type(depth) != int:
+        raise ValueError("Depth needs to be int and greater than 0")
+
+    if depth == 0 or board.is_game_over() == True:
+        board_int_eval = [board_3d_attack_int(board)]
+        board_int_eval = np.moveaxis(board_int_eval, 1, -1)
+        parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
+        prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
+        # print("1", prediction, best_move)
+        if verbose_minimax == True:
+            print(board)
+            print("_____________")
+        return(prediction)
+
+    if maximizing_player == True:
+        # print("maximizing_player == True", f", depth = {depth}")
+        max_eval = - np.inf
+        for valid_move in board.legal_moves:
+            board.push(valid_move)
+            eval = minimax(board, model, depth - 1, alpha, beta, False, verbose_minimax)
+            board.pop()
+            if eval > max_eval:
+                max_eval = eval
+            alpha = max(eval, alpha)
+            if beta <= alpha:
+                break
+        # print("2", max_eval, best_move)
+        if verbose_minimax == True:
+            print(board)
+            print("_____________")
+        return(max_eval)
+
+    else:
+        # print("maximizing_player == False", f", depth = {depth}")
+        min_eval = np.inf
+        for valid_move in board.legal_moves:
+            board.push(valid_move)
+            eval = minimax(board, model, depth - 1, alpha, beta, True, verbose_minimax)
+            board.pop()
+            if eval < min_eval:
+                min_eval = eval
+            beta = min(eval, beta)
+            if beta <= alpha:
+                break
+        #print("3", min_eval, best_move)
+        if verbose_minimax == True:
+            print(board)
+            print("_____________")
+        return(min_eval)
+
+
+def get_ai_move(board, model, depth, verbose_minimax):
+    max_move = None
+    max_eval = -np.inf
+
+    for valid_move in board.legal_moves:
+        board.push(valid_move)
+        eval = minimax(board, model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
+        board.pop()
+        if eval > max_eval:
+            max_eval = eval
+            max_move = valid_move
+  
+    return(max_move, max_eval)
+
+
+
+# def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
+#     global best_move
+#     if depth == 0 or board.is_game_over() == True:
+#         board_int_eval = [board_3d_attack_int(board)]
+#         board_int_eval = np.moveaxis(board_int_eval, 1, -1)
+#         parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
+#         prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
+#         # print("1", prediction, best_move)
+#         if verbose_minimax == True:
+#             print(board)
+#             print("_____________")
+#         return(prediction, best_move)
+
+#     if maximizing_player == True:
+#         # print("maximizing_player == True", f", depth = {depth}")
+#         max_eval = - np.inf
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval, best_move = minimax(board, model, depth - 1, alpha, beta, False, verbose_minimax)
+#             board.pop()
+#             if eval > max_eval:
+#                 max_eval = eval
+#                 best_move = valid_move
+#             alpha = max(eval, alpha)
+#             if beta <= alpha:
+#                 break
+#         # print("2", max_eval, best_move)
+#         if verbose_minimax == True:
+#             print(board)
+#             print("_____________")
+#         return(max_eval, best_move)
+
+#     else:
+#         # print("maximizing_player == False", f", depth = {depth}")
+#         min_eval = np.inf
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval, best_move = minimax(board, model, depth - 1, alpha, beta, True, verbose_minimax)
+#             board.pop()
+#             if eval < min_eval:
+#                 min_eval = eval
+#             beta = min(eval, beta)
+#             if beta <= alpha:
+#                 break
+#         #print("3", min_eval, best_move)
+#         if verbose_minimax == True:
+#             print(board)
+#             print("_____________")
+#         return(min_eval, best_move)
