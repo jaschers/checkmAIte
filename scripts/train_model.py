@@ -28,12 +28,12 @@ args = parser.parse_args()
 
 
 # load data
-num_runs = 50 #19
+num_runs = 100 #19
 table = pd.DataFrame()
 for run in range(num_runs):
     print(f"Loading data run {run}...")
     start = time.time()
-    table_run = pd.read_hdf(f"data/3d/24_8_8_depth15/data{run}.h5", key = "table")
+    table_run = pd.read_hdf(f"data/3d/24_8_8_depth0_mm100_ms10000/data{run}.h5", key = "table")
     middle = time.time()
     frame = [table, table_run]
     table = pd.concat(frame)
@@ -41,7 +41,7 @@ for run in range(num_runs):
     print(f"Data run {run} loaded within {np.round(middle-start, 1)} sec...")
 
 table = table.reset_index(drop = True)
-table = table.drop(table[abs(table.score) > 10900].index)
+table = table.drop(table[abs(table.score) > 9998].index)
 table = table.reset_index(drop = True)
 print(table)
 
@@ -156,30 +156,30 @@ os.makedirs("model/", exist_ok = True)
 model.compile(optimizer = "adam", loss="mse")
 
 os.makedirs("history/", exist_ok = True)
-model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=15, min_delta=1e-4)])
+model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=15, min_delta=1e-4)], verbose = 2)
 
 model.save(f"model/model_{args.name}.h5")
 
-# save model predictions on training an validation data
-os.makedirs("prediction/", exist_ok = True)
+# # save model predictions on training an validation data
+# os.makedirs("prediction/", exist_ok = True)
 
-prediction_train = model.predict([X_board3d_train, X_parameter_train])
-prediction_train = np.reshape(prediction_train, (np.shape(prediction_train)[0]))
+# # prediction_train = model.predict([X_board3d_train, X_parameter_train])
+# # prediction_train = np.reshape(prediction_train, (np.shape(prediction_train)[0]))
 
-prediction_val = model.predict([X_board3d_val, X_parameter_val])
-prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
+# prediction_val = model.predict([X_board3d_val, X_parameter_val])
+# prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
 
-table_pred_train = pd.DataFrame({"prediction": prediction_train})
-table_true_train = pd.DataFrame({"true score": Y_train})
+# # table_pred_train = pd.DataFrame({"prediction": prediction_train})
+# # table_true_train = pd.DataFrame({"true score": Y_train})
 
-table_pred_val = pd.DataFrame({"prediction": prediction_val})
-table_true_val = pd.DataFrame({"true score": Y_val})
+# table_pred_val = pd.DataFrame({"prediction": prediction_val})
+# table_true_val = pd.DataFrame({"true score": Y_val})
 
-table_pred_train = pd.concat([table_pred_train, table_true_train], axis = 1)
-table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
+# # table_pred_train = pd.concat([table_pred_train, table_true_train], axis = 1)
+# table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
 
-# print(table_pred_train)
-# print(table_pred_val)
+# # print(table_pred_train)
+# # print(table_pred_val)
 
-table_pred_train.to_hdf(f"prediction/prediction_train_{args.name}.h5", key = "table")
-table_pred_val.to_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
+# # table_pred_train.to_hdf(f"prediction/prediction_train_{args.name}.h5", key = "table")
+# table_pred_val.to_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
