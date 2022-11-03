@@ -1,20 +1,36 @@
 import numpy as np
 import pandas as pd
 import time
-from chessboard import display
+# from chessboard import display
 import matplotlib.pyplot as plt
 import os
 import sys
+import argparse
+
 np.set_printoptions(threshold=sys.maxsize)
 
+######################################## argparse setup ########################################
+script_descr="""
+Evaluates the residual neural network
+"""
+
+# Open argument parser
+parser = argparse.ArgumentParser(description=script_descr)
+
+# Define expected arguments
+parser.add_argument("-na", "--name", type = str, required = False, metavar = "-", help = "Name of this particular experiment")
+
+args = parser.parse_args()
+##########################################################################################
+
 # load data
-num_runs = 1
+num_runs = 10
 table = pd.DataFrame()
 for run in range(num_runs):
     # run = 2 #2
     print(f"Loading data run {run}...")
     start = time.time()
-    table_run = pd.read_hdf(f"data/data{run}.h5", key = "table")
+    table_run = pd.read_hdf(f"data/3d/{args.name}/data{run}.h5", key = "table")
     print(f"Number of boards in run {run}:", len(table_run))
     middle = time.time()
     print(f"Data run {run} loaded in {np.round(middle-start)} sec...")
@@ -39,27 +55,32 @@ print(table)
 # print(board_nan.fen())
 # display.start(board_nan.fen())
 
-os.makedirs("evaluation/data/", exist_ok = True)
+os.makedirs(f"evaluation/data/{args.name}", exist_ok = True)
 
 # while True:
 #     pass
 
 scores = table["score"].values.tolist()
+unique_scores = np.unique(scores)
+unique_scores = np.sort(unique_scores)
 
 plt.figure()
 plt.hist(scores, bins = 50)
 plt.xlabel("Score")
 plt.ylabel("Number boards")
 plt.tight_layout()
-plt.savefig("evaluation/data/score_distribution.pdf")
+plt.savefig(f"evaluation/data/{args.name}/score_distribution.pdf")
 # plt.show()
 
-argmin = table["score"].idxmin()
-min = table["score"].iloc[argmin]
-print(min)
-board = table["boards (FEN)"].iloc[argmin]
+print("Unique scores:")
+print(unique_scores)
 
-display.start(board.fen())
+# argmin = table["score"].idxmin()
+# min = table["score"].iloc[argmin]
+# print(min)
+# board = table["boards (FEN)"].iloc[argmin]
 
-while True:
-    pass
+# display.start(board.fen())
+
+# while True:
+#     pass
