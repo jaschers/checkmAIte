@@ -5,15 +5,23 @@ from stockfish import Stockfish
 import random
 from tqdm import tqdm
 import os 
+import matplotlib.pyplot as plt
+from matplotlib import animation
+import time
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
 
-# allocate stockfish engine and specify parameters
-stockfish = Stockfish(stockfish_path)
-stockfish.set_depth(20)
-stockfish.set_skill_level(20)
+# # allocate stockfish engine and specify parameters
+# stockfish = Stockfish(stockfish_path)
+# stockfish.set_depth(20)
+# stockfish.set_skill_level(20)
+
+# get stockfish engine
+stockfish_path = os.environ.get("STOCKFISHPATH")
+engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 best_move = None
+counter = 0
 
 def square_to_index(square):
     squares = np.linspace(0, 8*8 - 1, 8*8, dtype = int)
@@ -271,17 +279,30 @@ def boards_random(num_boards):
 
     return(boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score)
 
+def ai_board_score_pred(board, model):
+    board_3d_int = [board_3d_attack_int(board.copy())]
+    board_3d_int = np.moveaxis(board_3d_int, 1, -1)
+    parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
+    prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] 
+    return(prediction_score)
 
 def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
+    # global counter
+    # counter += 1
+    # print(counter)
     if depth < 0 or type(depth) != int:
         raise ValueError("Depth needs to be int and greater than 0")
 
     if depth == 0 or board.is_game_over() == True:
-        board_int_eval = [board_3d_attack_int(board)]
-        board_int_eval = np.moveaxis(board_int_eval, 1, -1)
-        parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
-        prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
-        # print("1", prediction, best_move)
+        prediction = ai_board_score_pred(board.copy(), model)
+        # board_int_eval = [board_3d_attack_int(board)]
+        # board_int_eval = np.moveaxis(board_int_eval, 1, -1)
+        # parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
+        # # start_time = time.time()
+        # prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
+        # # end_time = time.time()
+        # # print(end_time - start_time)
+        # # print("1", prediction, best_move)
         if verbose_minimax == True:
             print(board)
             print("_____________")
@@ -389,3 +410,87 @@ def get_ai_move(board, model, depth, verbose_minimax):
 #             print(board)
 #             print("_____________")
 #         return(min_eval, best_move)
+
+def save_board_png(board, game_name, counter):
+    """Saves the current board as png in games/{game_name}/board{counter}.png
+
+    Args:
+        board (chess.Board): chess board
+        game_name (str): name of the current chess game
+        counter (int): board move counter
+    """
+    boardsvg = chess.svg.board(board = board)
+    outputfile = open(f"games/{game_name}/board{counter}.svg", "w")
+    outputfile.write(boardsvg)
+    outputfile.close()
+    os.system(f"convert -density 1200 -resize 780x780 games/{game_name}/board{counter}.svg games/{game_name}/board{counter}.png")
+    os.system(f"rm games/{game_name}/board{counter}.svg")
+
+def save_baord_gif(boards_png, game_name):
+    """Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
+
+    Args:
+        boards_png (list): list of PIL.PngImagePlugin.PngImageFile images
+        game_name (str): name of the current chess game
+    """
+    fig = plt.figure(frameon=False)
+    ax  = fig.add_subplot(111)
+    ims = []
+    for board_png in boards_png:
+        ax.axis('off')
+        im = ax.imshow(board_png)
+        ims.append([im])
+    ani = animation.ArtistAnimation(fig, ims, interval = 1000)
+    ani.save(f"games/{game_name}/baord.gif")
+
+    os.system(f"rm games/{game_name}/*.png")
+
+def get_valid_moves(board):
+    """returns the valid moves of a board
+
+    Args:
+        board (chess.Board): chess board
+    
+    Returns:
+        valid_moves (list): list of chess.Move valid moves
+        valid_moves_str (list): list of str valid moves
+    """
+    valid_moves = list(board.legal_moves)
+    valid_moves_str = [valid_moves[i].uci() for i in range(len(valid_moves))]
+    return(valid_moves, valid_moves_str)
+
+def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
+    """Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
+
+    Args:
+        board (chess.Board): chess board
+        valid_moves (list): list of chess.Move valid moves
+        valid_moves_str (list): list of str valid moves
+        best_move_ai (chess.Move): best ai move
+
+    Returns:
+        best_move_stockfish (chess.Move): best move predicted by stockfish
+        stockfish_score_stockfish_move (int): stockfish score of the best stockfish move
+        stockfish_moves_sorted_by_score (numpy array): all valid moves sorted by stockfish score
+        index (int): ranking of the best ai move according to stockfish
+    """
+    stockfish_scores = []
+    for i in range(len(valid_moves)):
+        board.push(valid_moves[i])
+
+        result = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
+        stockfish_score = result["score"].white().score(mate_score = 10000)
+        stockfish_scores.append(stockfish_score)
+
+        board.pop()
+
+    stockfish_moves_sorted_by_score = sorted(zip(valid_moves_str, stockfish_scores), reverse=True)
+    dtype = [("move", "U4"), ("score", int)]
+    stockfish_moves_sorted_by_score = np.array(stockfish_moves_sorted_by_score, dtype = dtype)
+    stockfish_moves_sorted_by_score = np.sort(stockfish_moves_sorted_by_score, order = "score")[::-1]
+    best_move_stockfish = chess.Move.from_uci(stockfish_moves_sorted_by_score[0][0])
+    stockfish_score_stockfish_move = stockfish_moves_sorted_by_score[0][1]
+    # get ranking index of ai move according to stockfish
+    index = [i for i, v in enumerate(stockfish_moves_sorted_by_score) if v[0] == best_move_ai.uci()][0]
+
+    return(best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index)
