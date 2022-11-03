@@ -2,6 +2,7 @@
 __pycache__
 scripts/test.py
 scripts/game_minimax.py
+scripts/train_model_test.py
 data/
 evaluation/
 games/
