@@ -1,6 +1,5 @@
 import numpy as np
 from utilities_keras import *
-from utilities import *
 from keras import models, optimizers
 from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input, BatchNormalization, Add, Activation, Concatenate
 import keras.utils as utils

@@ -558,28 +558,3 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     board_fen += f" {fullmove_number}"
     
     return(board_fen)
-
-def load_data(num_runs, name_data, score_cut):
-    # load data
-    table = pd.DataFrame()
-    for run in range(num_runs):
-        print(f"Loading data run {run}...")
-        start = time.time()
-        table_run = pd.read_hdf(f"data/3d/{name_data}/data{run}.h5", key = "table")
-        middle = time.time()
-        frame = [table, table_run]
-        table = pd.concat(frame)
-        end = time.time()
-        print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
-
-    if score_cut != None:
-        table = table.reset_index(drop = True)
-        table = table.drop(table[abs(table.score) > score_cut].index)
-        table = table.reset_index(drop = True)
-    print(table)
-
-    X_board3d = table["board3d"].values.tolist()
-    X_parameter = table[["player move", "halfmove clock"]].values.tolist()
-    Y = table["score"].values.tolist()
-
-    return(X_board3d, X_parameter, Y)
