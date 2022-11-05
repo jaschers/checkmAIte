@@ -8,6 +8,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import time
+import pandas as pd
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
 
@@ -241,7 +242,7 @@ def board_score(board, depth = 0):
         int: stockfish score of the input board
     """
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-    result = engine.analyse(board, chess.engine.Limit(depth = depth))
+    result = engine.analyse(board.copy(), chess.engine.Limit(depth = depth))
     score = result["score"].white().score(mate_score = 10000)
     engine.quit()
     return(score)
@@ -295,25 +296,21 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax
 
     if depth == 0 or board.is_game_over() == True:
         prediction = ai_board_score_pred(board.copy(), model)
-        # board_int_eval = [board_3d_attack_int(board)]
-        # board_int_eval = np.moveaxis(board_int_eval, 1, -1)
-        # parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
-        # # start_time = time.time()
-        # prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
-        # # end_time = time.time()
-        # # print(end_time - start_time)
-        # # print("1", prediction, best_move)
+        
         if verbose_minimax == True:
             print(board)
+            print(f"Maximizing player == {maximizing_player}")
+            print("prediction", prediction * 14863 - 7645)
             print("_____________")
         return(prediction)
 
+    # maximizing_player == True -> AI's turn
     if maximizing_player == True:
         # print("maximizing_player == True", f", depth = {depth}")
         max_eval = - np.inf
         for valid_move in board.legal_moves:
             board.push(valid_move)
-            eval = minimax(board, model, depth - 1, alpha, beta, False, verbose_minimax)
+            eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, verbose_minimax)
             board.pop()
             if eval > max_eval:
                 max_eval = eval
@@ -323,15 +320,18 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax
         # print("2", max_eval, best_move)
         if verbose_minimax == True:
             print(board)
+            print(f"Maximizing player == {maximizing_player}")
+            print("max_eval", max_eval * 14863 - 7645)
             print("_____________")
         return(max_eval)
 
+    # maximizing_player == False -> player's turn
     else:
         # print("maximizing_player == False", f", depth = {depth}")
         min_eval = np.inf
         for valid_move in board.legal_moves:
             board.push(valid_move)
-            eval = minimax(board, model, depth - 1, alpha, beta, True, verbose_minimax)
+            eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, verbose_minimax)
             board.pop()
             if eval < min_eval:
                 min_eval = eval
@@ -341,6 +341,8 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax
         #print("3", min_eval, best_move)
         if verbose_minimax == True:
             print(board)
+            print(f"Maximizing player == {maximizing_player}")
+            print("min_eval", min_eval * 14863 - 7645)
             print("_____________")
         return(min_eval)
 
@@ -351,7 +353,8 @@ def get_ai_move(board, model, depth, verbose_minimax):
 
     for valid_move in board.legal_moves:
         board.push(valid_move)
-        eval = minimax(board, model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
+        # maximizing_player == False -> player's move because AI's (potential) move was just pushed
+        eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
         board.pop()
         if eval > max_eval:
             max_eval = eval
@@ -419,7 +422,7 @@ def save_board_png(board, game_name, counter):
         game_name (str): name of the current chess game
         counter (int): board move counter
     """
-    boardsvg = chess.svg.board(board = board)
+    boardsvg = chess.svg.board(board = board.copy())
     outputfile = open(f"games/{game_name}/board{counter}.svg", "w")
     outputfile.write(boardsvg)
     outputfile.close()
@@ -494,3 +497,89 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     index = [i for i, v in enumerate(stockfish_moves_sorted_by_score) if v[0] == best_move_ai.uci()][0]
 
     return(best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index)
+
+def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en_passant, halfmove_clock, fullmove_number):
+    """Converts a n-dimensional list of the chess board back to its FEN format
+
+    Args:
+        board_int (np.array): (n, 8, 8) list of the input board with {1,0} int values
+        number_boards_pieces (int): number of boards that describe the positions of the chess pieces
+        turn (bool): white trun (True) or black turn (False)
+        castling (str): string describing the castling rights of the game, e.g. Kqkq
+        en_passant (str): possible en passant targets, e.g. e3
+        halfmove_clock (int): number of moves both players have made since the last pawn advance or piece capture
+        fullmove_number (int): number of completed turns in the game
+
+    Returns:
+        board_fen (str): chess board in FEN format
+    """
+    dict_pieces = np.array(["P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"])
+    dict_turn = np.array(["b", "w"]) # or vice versa?
+    board_int_pieces = board_int[0:number_boards_pieces]
+
+    board_fen = ""
+    for row in range(8):
+        blank_square_counter = 0
+        for column in range(8):
+            piece_array = board_int_pieces[:,row,column]
+            piece_index = np.where(piece_array == 1)[0]
+
+            if piece_index.size > 0 and blank_square_counter == 0:
+                piece_str = dict_pieces[piece_index][0]
+                board_fen += f"{piece_str[0]}"
+                blank_square_counter = 0
+            elif piece_index.size > 0 and blank_square_counter != 0:
+                board_fen += f"{blank_square_counter}"
+                piece_str = dict_pieces[piece_index][0]
+                board_fen += f"{piece_str[0]}"
+                blank_square_counter = 0
+            else:
+                blank_square_counter += 1
+
+        if blank_square_counter != 0:
+            board_fen += f"{blank_square_counter}/"
+        else:
+            board_fen += "/"
+
+    board_fen = board_fen[:-1]    
+    board_fen += f" {dict_turn[int(turn)]}"
+    
+    if castling != None:
+        board_fen += f" {castling}"
+    else:
+        board_fen += f" -"
+
+    if en_passant != None:
+        board_fen += f" {en_passant}"
+    else:
+        board_fen += f" -"
+    
+    board_fen += f" {halfmove_clock}"
+    board_fen += f" {fullmove_number}"
+    
+    return(board_fen)
+
+def load_data(num_runs, name_data, score_cut):
+    # load data
+    table = pd.DataFrame()
+    for run in range(num_runs):
+        print(f"Loading data run {run}...")
+        start = time.time()
+        table_run = pd.read_hdf(f"data/3d/{name_data}/data{run}.h5", key = "table")
+        middle = time.time()
+        frame = [table, table_run]
+        table = pd.concat(frame)
+        end = time.time()
+        print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
+
+    if score_cut != None:
+        table = table.reset_index(drop = True)
+        table = table.drop(table[abs(table.score) > score_cut].index)
+        table = table.reset_index(drop = True)
+    print(table)
+
+    X_board3d = table["board3d"].values.tolist()
+    X_parameter = table[["player move", "halfmove clock"]].values.tolist()
+    Y = table["score"].values.tolist()
+
+    return(X_board3d, X_parameter, Y)
