@@ -1,5 +1,6 @@
 import numpy as np
 from utilities_keras import *
+from utilities import *
 from keras import models, optimizers
 from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input, BatchNormalization, Add, Activation, Concatenate
 import keras.utils as utils
@@ -20,7 +21,10 @@ Trains the residual neural network
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-na", "--name", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
+parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
+parser.add_argument("-nd", "--name_data", type = str, required = True, metavar = "-", help = "name of the data folder")
+parser.add_argument("-sc", "--score_cut", type = float, required = True, metavar = "-", default = None, help = "score cut applied on the data (default: None)")
+parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 parser.add_argument("-e", "--epochs", type = int, required = True, metavar = "-", help = "Number of epochs for the training")
 
 args = parser.parse_args()
@@ -28,32 +32,7 @@ args = parser.parse_args()
 
 
 # load data
-num_runs = 100 #19
-table = pd.DataFrame()
-for run in range(num_runs):
-    print(f"Loading data run {run}...")
-    start = time.time()
-    table_run = pd.read_hdf(f"data/3d/24_8_8_depth0_mm100_ms10000/data{run}.h5", key = "table")
-    middle = time.time()
-    frame = [table, table_run]
-    table = pd.concat(frame)
-    end = time.time()
-    print(f"Data run {run} loaded within {np.round(middle-start, 1)} sec...")
-
-table = table.reset_index(drop = True)
-table = table.drop(table[abs(table.score) > 9900].index)
-table = table.reset_index(drop = True)
-print(table)
-
-X_board3d = table["board3d"].values.tolist()
-X_parameter = table[["player move", "halfmove clock"]].values.tolist()
-Y = table["score"].values.tolist()
-
-# prepare data for neural network
-# X_board3d = np.zeros((len(X_board3d_aux), 14, 8, 8), dtype = int)
-# X_board3d[:,:12] = np.array(X_board3d_aux)[:,:12]
-# X_board3d[:,12] = np.sum(np.array(X_board3d_aux)[0,12:18], axis = 0)
-# X_board3d[:,13] = np.sum(np.array(X_board3d_aux)[0,18:], axis = 0)
+X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut)
 
 X_board3d = np.moveaxis(X_board3d, 1, -1)
 X_board3d_shape = np.shape(X_board3d)
@@ -156,30 +135,30 @@ os.makedirs("model/", exist_ok = True)
 model.compile(optimizer = "adam", loss="mean_squared_logarithmic_error") # mean_squared_logarithmic_error
 
 os.makedirs("history/", exist_ok = True)
-model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=30, min_delta=1e-4)], verbose = 2)
+model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=30, min_delta=1e-4)], verbose = 2)
 
-model.save(f"model/model_{args.name}.h5")
+model.save(f"model/model_{args.name_experiment}.h5")
 
-# save model predictions on training an validation data
-os.makedirs("prediction/", exist_ok = True)
+# # save model predictions on training an validation data
+# os.makedirs("prediction/", exist_ok = True)
 
-# prediction_train = model.predict([X_board3d_train, X_parameter_train])
-# prediction_train = np.reshape(prediction_train, (np.shape(prediction_train)[0]))
+# # prediction_train = model.predict([X_board3d_train, X_parameter_train])
+# # prediction_train = np.reshape(prediction_train, (np.shape(prediction_train)[0]))
 
-prediction_val = model.predict([X_board3d_val, X_parameter_val])
-prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
+# prediction_val = model.predict([X_board3d_val, X_parameter_val])
+# prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
 
-# table_pred_train = pd.DataFrame({"prediction": prediction_train})
-# table_true_train = pd.DataFrame({"true score": Y_train})
+# # table_pred_train = pd.DataFrame({"prediction": prediction_train})
+# # table_true_train = pd.DataFrame({"true score": Y_train})
 
-table_pred_val = pd.DataFrame({"prediction": prediction_val})
-table_true_val = pd.DataFrame({"true score": Y_val})
+# table_pred_val = pd.DataFrame({"prediction": prediction_val})
+# table_true_val = pd.DataFrame({"true score": Y_val})
 
-# table_pred_train = pd.concat([table_pred_train, table_true_train], axis = 1)
-table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
+# # table_pred_train = pd.concat([table_pred_train, table_true_train], axis = 1)
+# table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
 
-# print(table_pred_train)
-print(table_pred_val)
+# # print(table_pred_train)
+# print(table_pred_val)
 
-# table_pred_train.to_hdf(f"prediction/prediction_train_{args.name}.h5", key = "table")
-table_pred_val.to_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
+# # table_pred_train.to_hdf(f"prediction/prediction_train_{args.name_experiment}.h5", key = "table")
+# table_pred_val.to_hdf(f"prediction/prediction_val_{args.name_experiment}.h5", key = "table")
