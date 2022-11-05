@@ -29,7 +29,8 @@ Plays a game against the AI
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-d", "--depth", type = int, required = False, metavar = "-", help = "Depth of the minimax algorithm")
+parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
+parser.add_argument("-v", "--verbose", type = bool, required = True, metavar = "-", help = "Verbose True or False")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -38,14 +39,14 @@ args = parser.parse_args()
 dt_string = datetime.now().strftime("%b-%d-%Y_%H.%M.%S")
 
 # load neural network model
-model = models.load_model("model/model_24_8_8_depth0_mm100_ms10000_resnet128.h5") # score9998
+model = models.load_model("model/model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1.h5") # model_24_8_8_depth0_mm100_ms10000_resnet128
 
 # initialise game
 board = chess.Board()
 
 # save chess board as svg
 os.makedirs(f"games/{dt_string}", exist_ok = True)
-save_board_png(board = board, game_name = dt_string, counter = 1)
+save_board_png(board = board.copy(), game_name = dt_string, counter = 1)
 
 # display chess board
 display.start(board.fen())
@@ -69,43 +70,37 @@ while True:
 
     if user_input == "undo":
         # user move
-        valid_moves, valid_moves_str = get_valid_moves(board)
+        valid_moves, valid_moves_str = get_valid_moves(board.copy())
         valid_moves_str.append("undo")
         print("Valid moves for user:\n", valid_moves_str)
         user_input = input("Enter your move: ")
 
     else:
         # get all valid moves
-        valid_moves, valid_moves_str = get_valid_moves(board)
+        valid_moves, valid_moves_str = get_valid_moves(board.copy())
 
         # get best move ai
         # start_time = time.time()
-        best_move_ai, prediction_minimax = get_ai_move(board, model, depth = 2, verbose_minimax = False)
+        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, verbose_minimax = False)
         # end_time = time.time()
         # print(end_time - start_time)
         # get best move stockfish and ranking of all valid moves
-        best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai)
+        best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(board.copy(), valid_moves, valid_moves_str, best_move_ai)
 
         # push best stockfish move
         board.push(best_move_stockfish)
 
         # determine predicted ai score of stockfish move
         prediction_score_stockfish_move = ai_board_score_pred(board.copy(), model)
-        # board_3d_int = [board_3d_attack_int(board.copy())]
-        # board_3d_int = np.moveaxis(board_3d_int, 1, -1)
-        # parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
-        # prediction_score_stockfish_move = model.predict([board_3d_int, parameters], verbose = 0)[0][0]  
 
         # reset last move
         board.pop()
+
         # push best ai move
         board.push(best_move_ai)
-
+        
         # determine predicted ai score of ai move
-        board_3d_int = [board_3d_attack_int(board.copy())]
-        board_3d_int = np.moveaxis(board_3d_int, 1, -1)
-        parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
-        prediction_score_ai_move = model.predict([board_3d_int, parameters], verbose = 0)[0][0]  
+        prediction_score_ai_move = ai_board_score_pred(board.copy(), model)
 
         # determine stockfish score of ai move
         analyse_stockfish = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
@@ -116,22 +111,22 @@ while True:
 
         # print results
         print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
-        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move * 20000 - 10000), "/", stockfish_score_ai_move)
-        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move * 20000 - 10000), "/", stockfish_score_stockfish_move)
+        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move * 14863 - 7645), "/", stockfish_score_ai_move)
+        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move * 14863 - 7645), "/", stockfish_score_stockfish_move)
         print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
         print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
 
         print("________________")
         board.push(best_move_ai)
 
-        save_board_png(board = board, game_name = dt_string, counter = board_counter)
+        save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
 
         board_counter += 1
 
         display.start(board.fen())
 
         # user move
-        valid_moves, valid_moves_str = get_valid_moves(board)
+        valid_moves, valid_moves_str = get_valid_moves(board.copy())
         valid_moves_str.append("undo")
         print("Valid moves for user:\n", valid_moves_str)
         user_input = input("Enter your move: ")
@@ -150,7 +145,7 @@ while True:
 
     print("________________")
 
-    save_board_png(board = board, game_name = dt_string, counter = board_counter)
+    save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
 
     board_counter += 1
 
