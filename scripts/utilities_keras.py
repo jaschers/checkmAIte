@@ -85,7 +85,7 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
     print(table)
 
     # os.makedirs(f"evaluation/{name}/examples", exist_ok = True)
-    table.to_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
+    table.to_hdf(f"prediction/{name}/examples_{name}.h5", key = "table")
 
     # table.to_hdf(f"evaluation/{name}/examples/examples_{name}.h5", key = "table")
 
