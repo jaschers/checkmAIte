@@ -84,9 +84,10 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
 
     print(table)
 
-    os.makedirs(f"evaluation/{name}/examples", exist_ok = True)
+    # os.makedirs(f"evaluation/{name}/examples", exist_ok = True)
+    table.to_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
 
-    table.to_hdf(f"evaluation/{name}/examples/examples_{name}.h5", key = "table")
+    # table.to_hdf(f"evaluation/{name}/examples/examples_{name}.h5", key = "table")
 
 def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en_passant, halfmove_clock, fullmove_number):
     """Converts a n-dimensional list of the chess board back to its FEN format

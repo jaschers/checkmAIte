@@ -54,7 +54,7 @@ print("Number of training, validation and test data:", len(X_board3d_train), len
 model = models.load_model(f"model/model_{args.name_experiment}.h5")
 
 # save model predictions on training an validation data
-os.makedirs("prediction/", exist_ok = True)
+os.makedirs(f"prediction/{args.name_experiment}", exist_ok = True)
 
 prediction_val = model.predict([X_board3d_val, X_parameter_val])
 prediction_val = np.reshape(prediction_val, (np.shape(prediction_val)[0]))
@@ -66,6 +66,6 @@ table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
 
 print(table_pred_val)
 
-table_pred_val.to_hdf(f"prediction/prediction_val_{args.name_experiment}.h5", key = "table")
+table_pred_val.to_hdf(f"prediction/{args.name_experiment}/prediction_val_{args.name_experiment}.h5", key = "table")
 
 get_extreme_predictions(prediction_val, Y_val, X_board3d, X_parameter, args.name_experiment)
