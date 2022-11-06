@@ -6,6 +6,8 @@ import random
 from tqdm import tqdm
 import os 
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LogNorm
 from matplotlib import animation
 import time
 import pandas as pd
@@ -558,3 +560,82 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     board_fen += f" {fullmove_number}"
     
     return(board_fen)
+
+def plot_history(history, name):
+    print("Plotting history...")
+    plt.figure()
+    plt.plot(history["loss"], label="Training")
+    plt.plot(history["val_loss"], label = "Validation")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/history_{name}.pdf")
+    # plt.show()
+    plt.close()
+
+def plot_2d_scattering(prediction_val, true_score_val, name):
+    print("Plotting 2D scattering...")
+    viridis = cm.get_cmap('viridis', 256)
+    newcolors = viridis(np.linspace(0, 1, 256))
+    white = np.array([1, 1, 1, 1])
+    newcolors[:1, :] = white
+    newcmp = ListedColormap(newcolors)
+
+    plt.figure()
+    plt.hist2d(true_score_val, prediction_val, bins = (50, 50), cmap = newcmp, norm = LogNorm())
+    cbar = plt.colorbar()
+    cbar.set_label('Number of boards')
+    plt.plot(np.linspace(np.min(true_score_val), np.max(true_score_val), 100), np.linspace(np.min(true_score_val), np.max(true_score_val), 100), color = "black")
+    # plt.ylim(np.min(true_score_val), np.max(true_score_val))
+    plt.xlabel("True score")
+    plt.ylabel("Predicted score")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/2Dscattering_{name}.pdf")
+    # plt.show()
+    plt.close()
+
+def plot_hist_difference_total(prediction_val, true_score_val, name):
+    print("Plotting histogram difference...")
+    difference = prediction_val - true_score_val
+    mean = np.mean(difference)
+    median = np.median(difference)
+    std = np.std(difference)
+    plt.figure()
+    plt.hist(difference, bins = 50, label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
+    plt.xlabel("pred. score - true score")
+    plt.ylabel("Number of boards")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/hist_difference_total_{name}.pdf")
+    # plt.show()
+    plt.close()
+
+def plot_hist_difference_binned(prediction_val, true_score_val, name):
+    print("Plotting histogram difference...")
+    true_score_min, true_score_max = np.min(true_score_val), np.max(true_score_val)
+    bins = np.linspace(true_score_min, true_score_max, 5)
+
+    fig, ax = plt.subplots(2, 2)
+    ax = ax.ravel()
+    for subplot in range(4):
+        indices = np.where((true_score_val >= bins[subplot]) & (true_score_val <= bins[subplot+1]))[0]
+        true_score_val_binned = true_score_val[indices]
+        prediction_val_binned = prediction_val[indices]
+        difference = prediction_val_binned - true_score_val_binned
+        mean = np.mean(difference)
+        median = np.median(difference)
+        std = np.std(difference)
+        number_boards = len(difference)
+        ax[subplot].set_title(f"{np.round(bins[subplot], 2)} < true score < {np.round(bins[subplot+1], 2)}")
+        ax[subplot].hist(difference, bins = 50, label = f"$\mu = {np.round(mean*1e4, 1)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 1)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 1)} \cdot 10^{{-4}}$ \n# boards = {number_boards}")
+        ax[subplot].legend()
+        ymin, ymax = ax[subplot].get_ylim()
+        ax[subplot].set_ylim(ymin, ymax * 2.0)
+        # plt.xlabel("pred. score - true score")
+        # plt.ylabel("Number of boards")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/hist_difference_binned_{name}.pdf")
+    # plt.show()
+    plt.close()
+
