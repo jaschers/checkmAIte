@@ -20,15 +20,17 @@ args = parser.parse_args()
 
 
 # load data
-print("Loading validation data...")
-table_val = pd.read_hdf(f"prediction/prediction_val_{args.name}.h5", key = "table")
+print("Loading data...")
+table_pred_val = pd.read_hdf(f"prediction/{args.name}/prediction_val_{args.name}.h5", key = "table")
+table_examples = pd.read_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
 
-prediction_val = table_val["prediction"]
-true_score_val = table_val["true score"]
+prediction_val = table_pred_val["prediction"]
+true_score_val = table_pred_val["true score"]
 
 history = pd.read_csv(f"history/history_{args.name}.csv")
 
 os.makedirs(f"evaluation/{args.name}/", exist_ok = True)
+os.makedirs(f"evaluation/{args.name}/examples", exist_ok = True)
 
 plot_history(history, args.name)
 
@@ -38,4 +40,4 @@ plot_hist_difference_total(prediction_val, true_score_val, args.name)
 
 plot_hist_difference_binned(prediction_val, true_score_val, args.name)
 
-# bad_predictions(prediction_val, true_score_val, args.name)
+save_examples(table_examples, args.name)

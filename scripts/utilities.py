@@ -1,5 +1,6 @@
 import chess
 import chess.engine
+import chess.svg
 import numpy as np
 from stockfish import Stockfish
 import random
@@ -595,7 +596,7 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     plt.close()
 
 def plot_hist_difference_total(prediction_val, true_score_val, name):
-    print("Plotting histogram difference...")
+    print("Plotting histogram difference total...")
     difference = prediction_val - true_score_val
     mean = np.mean(difference)
     median = np.median(difference)
@@ -611,7 +612,7 @@ def plot_hist_difference_total(prediction_val, true_score_val, name):
     plt.close()
 
 def plot_hist_difference_binned(prediction_val, true_score_val, name):
-    print("Plotting histogram difference...")
+    print("Plotting histogram difference binned...")
     true_score_min, true_score_max = np.min(true_score_val), np.max(true_score_val)
     bins = np.linspace(true_score_min, true_score_max, 5)
 
@@ -639,3 +640,15 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
     # plt.show()
     plt.close()
 
+def save_examples(table, name):
+    print("Saving examples...")
+    print(table)
+    for i in range(len(table)):
+        board = chess.Board(table["board (FEN)"][i])
+        boardsvg = chess.svg.board(board = board.copy())
+        outputfile = open(f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg", "w")
+        outputfile.write(boardsvg)
+        outputfile.close()
+        os.system(f"convert -density 1200 -resize 780x780 evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.png")
+        os.system(f"rm evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg")
+        print(f"Board {i} saved...")
