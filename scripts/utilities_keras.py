@@ -76,7 +76,7 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
         X_board_extreme.append(convert_board_int_to_fen(X_board3d_extreme[i], 12, X_parameter_extreme[i][0], None, None, X_parameter[i][1], 1))
 
     table_baord = pd.DataFrame({"board (FEN)": X_board_extreme})
-    table_baord3d = pd.DataFrame({"board3d": X_board3d_extreme})
+    table_baord3d = pd.DataFrame({"board3d": list(X_board3d_extreme)})
     table_pred_val = pd.DataFrame({"prediction": prediction_val[indices]})
     table_true_val = pd.DataFrame({"true score": true_score_val[indices]})
     table_difference = pd.DataFrame({"difference": difference_extreme})
