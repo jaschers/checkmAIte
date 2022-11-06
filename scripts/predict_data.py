@@ -67,3 +67,5 @@ table_pred_val = pd.concat([table_pred_val, table_true_val], axis = 1)
 print(table_pred_val)
 
 table_pred_val.to_hdf(f"prediction/prediction_val_{args.name_experiment}.h5", key = "table")
+
+get_extreme_predictions(prediction_val, Y_val, X_board3d, X_parameter, args.name_experiment)
