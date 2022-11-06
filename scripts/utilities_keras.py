@@ -71,6 +71,8 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
 
     X_board3d_extreme, X_parameter_extreme, difference_extreme = np.array(X_board3d)[indices], np.array(X_parameter)[indices], difference[indices]
 
+    X_board3d_extreme = np.moveaxis(X_board3d_extreme, -1, 1)
+
     X_board_extreme = []
     for i in range(len(X_board3d_extreme)):
         X_board_extreme.append(convert_board_int_to_fen(X_board3d_extreme[i], 12, X_parameter_extreme[i][0], None, None, X_parameter[i][1], 1))
