@@ -586,7 +586,7 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     newcmp = ListedColormap(newcolors)
 
     plt.figure()
-    plt.hist2d(true_score_val, prediction_val, bins = (50, 50), cmap = newcmp, norm = LogNorm())
+    plt.hist2d(true_score_val, prediction_val, bins = (200, 200), cmap = newcmp, norm = LogNorm())
     cbar = plt.colorbar()
     cbar.set_label('Number of boards')
     plt.plot(np.linspace(np.min(true_score_val), np.max(true_score_val), 100), np.linspace(np.min(true_score_val), np.max(true_score_val), 100), color = "black")
@@ -649,7 +649,7 @@ def save_examples(table, name):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
 
-        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}"
+        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}_turn_{int(table['turn'][i])}"
 
         path = path_uniquify(path)
 
