@@ -13,6 +13,9 @@ from matplotlib import animation
 import time
 import pandas as pd
 import sys
+from keras import models
+import tensorflow as tf
+
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -645,6 +648,14 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
 
 def save_examples(table, name):
     print("Saving examples...")
+    os.system(f"rm evaluation/{name}/examples/*")
+
+    model = models.load_model(f"model/model_{name}.h5")
+
+    for layer in model.layers:
+        if "conv" in layer.name:
+            last_conv_layer_name = layer.name
+
     for i in range(len(table)):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
@@ -658,6 +669,32 @@ def save_examples(table, name):
         outputfile.close()
         os.system("convert -density 1200 -resize 780x780 " + path + ".svg " + path + ".png")
         os.system("rm " + path + ".svg")
+
+        X_board3d = board_3d_attack_int(board.copy())
+        X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
+        X_parameter = np.array([[board.copy().turn, board.copy().halfmove_clock]])
+
+        heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
+
+        # save heatmap
+        plt.figure()
+        plt.matshow(heatmap, cmap = "gnuplot")
+        plt.axis("off")
+        plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
+        plt.close()
+
+        plt.figure()
+        img_heatmap = plt.imread(path + "_heatmap.png")
+        img_board = plt.imread(path + ".png")
+        plt.imshow(img_board, interpolation = "nearest")
+        plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
+        plt.axis("off")
+        plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
+
+        os.system("rm " + path + "_heatmap.png")
+
+        plt.close("all")
+
         print(f"Board {i} saved...")
 
 def path_uniquify(path):
@@ -669,3 +706,81 @@ def path_uniquify(path):
         counter += 1
 
     return(path)
+
+def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
+    # First, we create a model that maps the input image to the activations
+    # of the last conv layer as well as the output predictions
+    grad_model = models.Model([model.inputs], [model.get_layer(last_conv_layer_name).output, model.output])
+
+    # Then, we compute the gradient of the top predicted class for our input image
+    # with respect to the activations of the last conv layer
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(img)
+        if pred_index is None:
+            pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
+
+    # This is the gradient of the output neuron (top predicted or chosen)
+    # with regard to the output feature map of the last conv layer
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+    # print(grads)
+    # print(np.min(grads), np.max(grads))
+    # print(np.shape(grads))
+
+    # This is a vector where each entry is the mean intensity of the gradient
+    # over a specific feature map channel
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    # We multiply each channel in the feature map array
+    # by "how important this channel is" with regard to the top predicted class
+    # then sum all the channels to obtain the heatmap class activation
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+
+    # For visualization purpose, we will also normalize the heatmap between 0 & 1
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    return(heatmap.numpy())
+
+# def save_examples_gradcam(table, name):
+#     print("Saving examples gradcam...")
+#     model = models.load_model(f"model/model_{name}.h5")
+
+#     for layer in model.layers:
+#         if "conv" in layer.name:
+#             last_conv_layer_name = layer.name
+
+#     for i in range(len(table)):
+#         board = chess.Board(table["board (FEN)"][i])
+#         X_board3d = board_3d_attack_int(board.copy())
+#         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
+#         X_parameter = np.array([[board.copy().turn, board.copy().halfmove_clock]])
+
+#         heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
+
+#         path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}"
+
+#         path = path_uniquify(path)
+
+#         # save heatmap
+#         plt.figure()
+#         plt.matshow(heatmap, cmap = "gnuplot")
+#         plt.axis("off")
+#         plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
+#         plt.close()
+
+#         plt.figure()
+#         img_heatmap = plt.imread(path + "_heatmap.png")
+#         img_board = plt.imread(path + ".png")
+#         plt.imshow(img_board, interpolation = "nearest")
+#         plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
+#         plt.axis("off")
+#         plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
+
+#         os.system("rm " + path + "_heatmap.png")
+
+#         plt.close("all")
+
+#         print(f"GradCam Board {i} saved...")
+
+        

@@ -41,3 +41,5 @@ plot_hist_difference_total(prediction_val, true_score_val, args.name)
 plot_hist_difference_binned(prediction_val, true_score_val, args.name)
 
 save_examples(table_examples, args.name)
+
+# save_examples_gradcam(table_examples, args.name)
