@@ -12,6 +12,9 @@ from matplotlib.colors import ListedColormap, LogNorm
 from matplotlib import animation
 import time
 import pandas as pd
+import sys
+
+np.set_printoptions(threshold=sys.maxsize)
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
 
@@ -642,13 +645,27 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
 
 def save_examples(table, name):
     print("Saving examples...")
-    print(table)
     for i in range(len(table)):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
-        outputfile = open(f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg", "w")
+
+        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}"
+
+        path = path_uniquify(path)
+
+        outputfile = open(path +".svg", "w")
         outputfile.write(boardsvg)
         outputfile.close()
-        os.system(f"convert -density 1200 -resize 780x780 evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.png")
-        os.system(f"rm evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2)}_ts_{np.round(table['true score'][i], 2)}.svg")
+        os.system("convert -density 1200 -resize 780x780 " + path + ".svg " + path + ".png")
+        os.system("rm " + path + ".svg")
         print(f"Board {i} saved...")
+
+def path_uniquify(path):
+    filename = path
+    counter = 1
+
+    while os.path.exists(path + ".png"):
+        path = filename + "_" + str(counter)
+        counter += 1
+
+    return(path)
