@@ -3,28 +3,34 @@ from utilities import boards_random
 import pandas as pd
 import os
 import numpy as np
+import sys
+
+np.set_printoptions(threshold=sys.maxsize)
 
 # to be added:
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 60
+number_runs = 50 # 60
 for run in range(number_runs):
-    # run = run + 50
+    run = run + 99
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
-    start = time.time()
-    boards_random_fen, boards_random_int, boards_random_score = boards_random(num_boards = 20000)
+    boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score = boards_random(num_boards = 10000) #10000
 
-    df1 = pd.DataFrame({"boards (FEN)": boards_random_fen})
-    df2 = pd.DataFrame({"boards (int)": boards_random_int})
-    df3 = pd.DataFrame({"score": boards_random_score})
+    df1 = pd.DataFrame({"board3d": boards_random_int})
+    df2 = pd.DataFrame({"player move": player_move})
+    df3 = pd.DataFrame({"halfmove clock": halfmove_clock})
+    df4 = pd.DataFrame({"fullmove number": fullmove_number})
+    df5 = pd.DataFrame({"score": boards_random_score})
 
-    table = pd.concat([df1, df2, df3], axis = 1)
+    table = pd.concat([df1, df2, df3, df4, df5], axis = 1)
 
-    os.makedirs("data/", exist_ok = True)
+    print(table)
+    # print(np.array(table["board3d (int)"][0]))
 
-    table.to_hdf(f"data/data{run}.h5", key = "table")
+    os.makedirs("data/3d/24_8_8_depth0_mm100_ms10000/", exist_ok = True)
+
+    table.to_hdf(f"data/3d/24_8_8_depth0_mm100_ms10000/data{run}.h5", key = "table")
 
     end = time.time()
-    print(f"Processing time for run {run}:", np.round((end - start) / 60 / 60, 2), "hours")
