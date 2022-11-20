@@ -26,7 +26,8 @@ while True:
     if board.is_game_over():
         print("Game over!")
         print(board.outcome())
-        break
+        while True:
+            pass
 
     # AI move
     valid_moves = list(board.legal_moves)
@@ -37,7 +38,7 @@ while True:
         board.push(valid_moves[i])
         valid_boards.append(board_int(board.copy()))
         board.pop()
-    prediction = model.predict(valid_boards, verbose=0) * -15000
+    prediction = model.predict(valid_boards, verbose=0) * 15000
     print("AI all predicted scores: ", prediction)
     argmax = np.argmax(prediction)
     best_move = valid_moves[argmax]

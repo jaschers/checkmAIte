@@ -95,3 +95,49 @@ def boards_random(num_boards):
         boards_random_score.append(board_score(board.copy()))
 
     return(boards_random_fen, boards_random_int, boards_random_score)
+
+def minimax(board, model, depth, alpha, beta, maximizing_player):
+    """_summary_
+
+    Args:
+        board (chess.Board): chess board in FEN format
+        model (_type_): _description_
+        depth (_type_): _description_
+        alpha (_type_): _description_
+        beta (_type_): _description_
+        maximizing_player (_type_): _description_
+    """
+    if depth == 0 or board.is_game_over() == True:
+        board_int_eval = [board_int(board)]
+        # board_int_eval_shape = np.shape(board_int_eval)
+        # board_int_eval = np.reshape(board_int_eval, (board_int_eval_shape[0], board_int_eval_shape[1], board_int_eval_shape[2], 1))
+        prediction = model.predict(board_int_eval, verbose=0)[0][0] * 15000
+        return(prediction)
+
+        # result = engine.analyse(board, chess.engine.Limit(depth = 10))
+        # score_stockfish = result["score"].white().score()
+        # return(score_stockfish)
+
+    if maximizing_player == True:
+        max_eval = - np.inf
+        for valid_move in board.legal_moves:
+            board.push(valid_move)
+            eval = minimax(board, model, depth - 1, alpha, beta, False)
+            board.pop()
+            max_eval = max(eval, max_eval)
+            alpha = max(eval, alpha)
+            if beta <= alpha:
+                break
+        return(max_eval)
+
+    else:
+        min_eval = np.inf
+        for valid_move in board.legal_moves:
+            board.push(valid_move)
+            eval = minimax(board, model, depth - 1, alpha, beta, True)
+            board.pop()
+            min_eval = min(eval, min_eval)
+            beta = min(eval, beta)
+            if beta <= alpha:
+                break
+        return(min_eval)
