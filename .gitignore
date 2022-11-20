@@ -1,6 +1,7 @@
 # the following files/folders are not uploaded to git
 __pycache__
 scripts/test.py
+scripts/game_minimax.py
 scripts/train_model_test.py
 data/
 evaluation/
