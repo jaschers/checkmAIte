@@ -82,7 +82,7 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
     table_pred_val = pd.DataFrame({"prediction": prediction_val[indices]})
     table_true_val = pd.DataFrame({"true score": true_score_val[indices]})
     table_difference = pd.DataFrame({"difference": difference_extreme})
-    table_turn = pd.DataFrame({"turn": X_parameter_extreme})
+    table_turn = pd.DataFrame({"turn": X_parameter_extreme[:, 0]})
 
     table = pd.concat([table_baord, table_baord3d, table_pred_val, table_true_val, table_difference, table_turn], axis = 1)
 
