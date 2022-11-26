@@ -131,7 +131,7 @@ os.makedirs("model/", exist_ok = True)
 
 # compile model
 # model.compile(optimizer=optimizers.Adam(5e-4), loss="mse")
-model.compile(optimizer = "adam", loss="mean_squared_logarithmic_error") # mean_squared_logarithmic_error
+model.compile(optimizer = "adam", loss="mse") # mean_squared_logarithmic_error
 
 os.makedirs("history/", exist_ok = True)
 model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=30, min_delta=1e-4)], verbose = 2)
