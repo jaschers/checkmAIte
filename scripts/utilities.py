@@ -21,11 +21,6 @@ np.set_printoptions(threshold=sys.maxsize)
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
 
-# # allocate stockfish engine and specify parameters
-# stockfish = Stockfish(stockfish_path)
-# stockfish.set_depth(20)
-# stockfish.set_skill_level(20)
-
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
@@ -37,11 +32,20 @@ def square_to_index(square):
     squares = np.linspace(0, 8*8 - 1, 8*8, dtype = int)
     squares_2d = np.reshape(squares, (8,8))
     squares_2d = np.flip(squares_2d, 0)
-    index = np.where(squares_2d == square)
-    return(index[0][0], index[1][0])
+
+    if type(square) == int:
+        index = np.where(squares_2d == square)
+        row_index, column_index = index[0][0], index[1][0]
+        return(row_index, column_index)
+    elif type(square) == list:
+        indices = []
+        for sqr in square:
+            index = np.where(squares_2d == sqr)
+            indices.append([index[0][0], index[1][0]])
+        return(indices) 
 
 def board_int(board):
-    """converts chess board into 2D array with
+    """converts chess board into 2D list with
     1: pawn
     2: knight
     3: bishop
@@ -159,100 +163,22 @@ def board_3d_attack_int(board):
     board_arr = board_arr.tolist()
     return(board_arr)
 
-# def board_3d_attack_int(board):
-#     """converts chess board into 3D (24, 8, 8) array with board[i] representing:
-#     0: all squares covered by white pawn
-#     1: all squares covered by white knight
-#     2: all squares covered by white bishop
-#     3: all squares covered by white rook
-#     4: all squares covered by white queen
-#     5: all squares covered by white king
-#     6: all squares covered by black pawn
-#     7: all squares covered by black knight
-#     8: all squares covered by black bishop
-#     9: all squares covered by black rook
-#     10: all squares covered by black queen
-#     11: all squares covered by black king
-#     12: all squares being attacked by white pawn
-#     13: all squares being attacked by white knight
-#     14: all squares being attacked by white bishop
-#     15: all squares being attacked by white rook
-#     16: all squares being attacked by white queen
-#     17: all squares being attacked by white king
-#     18: all squares being attacked by black pawn
-#     19: all squares being attacked by black knight
-#     20: all squares being attacked by black bishop
-#     21: all squares being attacked by black rook
-#     22: all squares being attacked by black queen
-#     23: all squares being attacked by black king
-
-#     Args:
-#         board (chess.Board): chess board
-
-#     Returns:
-#         list: (24, 8, 8) list of the input board with {1,0} int values
-#     """
-#     # initialise board array
-#     number_boards = 14 
-#     board_arr = np.zeros((number_boards, 8, 8), dtype = int)
-
-#     # for loop over all piece types (pawn, knight, ...)
-#     for piece in chess.PIECE_TYPES:
-#         # for loop over all squares of white pieces
-#         for square in board.pieces(piece, chess.WHITE):
-#             # get indices of the individual piece
-#             board_index = square_to_index(square)
-#             # fill array at board_index with piece value for each piece
-#             board_arr[piece - 1][board_index[0]][board_index[1]] = 1
-
-#         # for loop over all squares of black pieces
-#         for square in board.pieces(piece, chess.BLACK):
-#             # get indices of the individual piece
-#             board_index = square_to_index(square)
-#             # fill array at board_index with piece value for each piece
-#             board_arr[piece - 1 + 6][board_index[0]][board_index[1]] = 1
-
-
-#     # add attacks from each pice to an individual 8x8 subarray
-#     board.turn = chess.WHITE
-#     for valid_move in board.legal_moves:
-#         # get piece type that's making the move
-#         piece_type = board.piece_type_at(valid_move.from_square)
-#         # get square number that is being attacked
-#         square = valid_move.to_square
-#         # convert square number into index for (8,8) board
-#         board_index = square_to_index(square)
-#         # add +1 to the attacked square in the board_arr of corresponding piece type
-#         board_arr[12][board_index[0]][board_index[1]] = 1
-
-#     board.turn = chess.BLACK
-#     for valid_move in board.legal_moves:
-#         # get piece type that's making the move
-#         piece_type = board.piece_type_at(valid_move.from_square)
-#         # get square number that is being attacked
-#         square = valid_move.to_square
-#         # convert square number into index for (8,8) board
-#         board_index = square_to_index(square)
-#         # add +1 to the attacked square in the board_arr of corresponding piece type
-#         board_arr[13][board_index[0]][board_index[1]] = 1
-
-#     # board_arr = board_arr.flatten()
-#     board_arr = board_arr.tolist()
-#     return(board_arr)
-
 def board_score(board, depth = 0):
     """Evaluates the score of a board for player white based on stockfish.
 
     Args:
         board (chess.Board): chess board in FEN format
-        time_limit (float, optional): maximum time allocated for the calculation. Defaults to 0.001 sec.
+        depth (int, optional): stockfish depth. Default 0
 
     Returns:
         int: stockfish score of the input board
     """
+    score_dict = {"15000": 15000, "14999": 14000, "14998": 13000, "14997": 12000, "14996": 11000, "14995": 10000, "14994": 9000, "14993": 8000, "-15000": -15000, "-14999": -14000, "-14998": -13000, "-14997": -12000, "-14996": -11000, "-14995": -10000, "-14994": -9000, "-14993": -8000}
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board.copy(), chess.engine.Limit(depth = depth))
-    score = result["score"].white().score(mate_score = 10000)
+    score = result["score"].white().score(mate_score = 15000)
+    if str(score) in score_dict:
+        score = score_dict[f"{score}"]
     engine.quit()
     return(score)
 
@@ -266,9 +192,7 @@ def boards_random(num_boards):
         list: (N,) list including all the randomly generated boards N while playing the games
     """
     boards_random_int = []
-    player_move = []
-    halfmove_clock = []
-    fullmove_number = []
+    boards_random_parameter = []
     boards_random_score = []
 
     for _ in tqdm(range(num_boards)):
@@ -281,13 +205,13 @@ def boards_random(num_boards):
             if board.is_game_over():
                 break
 
-        boards_random_int.append(board_3d_attack_int(board.copy()))
-        player_move.append(board.copy().turn)
-        halfmove_clock.append(np.int16(board.copy().halfmove_clock))
-        fullmove_number.append(np.int16(board.copy().fullmove_number))
+        boards_random_int.append(get_board_total(board.copy()))
+        boards_random_parameter.append(get_board_parameters(board.copy()))
         boards_random_score.append(np.int16(board_score(board.copy())))
 
-    return(boards_random_int, player_move, halfmove_clock, fullmove_number, boards_random_score)
+    boards_random_parameter = np.array(boards_random_parameter)
+
+    return(boards_random_int, boards_random_parameter, boards_random_score)
 
 def ai_board_score_pred(board, model):
     board_3d_int = [board_3d_attack_int(board.copy())]
@@ -370,58 +294,6 @@ def get_ai_move(board, model, depth, verbose_minimax):
             max_move = valid_move
   
     return(max_move, max_eval)
-
-
-
-# def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
-#     global best_move
-#     if depth == 0 or board.is_game_over() == True:
-#         board_int_eval = [board_3d_attack_int(board)]
-#         board_int_eval = np.moveaxis(board_int_eval, 1, -1)
-#         parameters = np.array([[np.float32(board.turn), np.float32(board.halfmove_clock)]])
-#         prediction = model.predict([board_int_eval, parameters], verbose = 0)[0][0]
-#         # print("1", prediction, best_move)
-#         if verbose_minimax == True:
-#             print(board)
-#             print("_____________")
-#         return(prediction, best_move)
-
-#     if maximizing_player == True:
-#         # print("maximizing_player == True", f", depth = {depth}")
-#         max_eval = - np.inf
-#         for valid_move in board.legal_moves:
-#             board.push(valid_move)
-#             eval, best_move = minimax(board, model, depth - 1, alpha, beta, False, verbose_minimax)
-#             board.pop()
-#             if eval > max_eval:
-#                 max_eval = eval
-#                 best_move = valid_move
-#             alpha = max(eval, alpha)
-#             if beta <= alpha:
-#                 break
-#         # print("2", max_eval, best_move)
-#         if verbose_minimax == True:
-#             print(board)
-#             print("_____________")
-#         return(max_eval, best_move)
-
-#     else:
-#         # print("maximizing_player == False", f", depth = {depth}")
-#         min_eval = np.inf
-#         for valid_move in board.legal_moves:
-#             board.push(valid_move)
-#             eval, best_move = minimax(board, model, depth - 1, alpha, beta, True, verbose_minimax)
-#             board.pop()
-#             if eval < min_eval:
-#                 min_eval = eval
-#             beta = min(eval, beta)
-#             if beta <= alpha:
-#                 break
-#         #print("3", min_eval, best_move)
-#         if verbose_minimax == True:
-#             print(board)
-#             print("_____________")
-#         return(min_eval, best_move)
 
 def save_board_png(board, game_name, counter):
     """Saves the current board as png in games/{game_name}/board{counter}.png
@@ -742,45 +614,334 @@ def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
     heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
     return(heatmap.numpy())
 
-# def save_examples_gradcam(table, name):
-#     print("Saving examples gradcam...")
-#     model = models.load_model(f"model/model_{name}.h5")
+def get_board_parameters(board):
+    """Returns board parameters from a given board.
 
-#     for layer in model.layers:
-#         if "conv" in layer.name:
-#             last_conv_layer_name = layer.name
+    Args:
+        board (chess.Board): chess board
+    
+    Returns:
+        tuple: (14,) of:
+            bool: side to move (True = white, False = black)
+            int: halfmove clock number
+            int: fullmove number
+            bool: checks if the current side to move is in check
+            bool: checks if the current side to move is in checkmate
+            bool: checks if the current side to move is in stalemate
+            bool: checks if white has insufficient winning material
+            bool: checks if black has insufficient winning material
+            bool: checks seventy-five-move rule
+            bool: checks fivefold repetition
+            bool: checks castling right king side of white
+            bool: checks castling right queen side of white
+            bool: checks castling right king side of black
+            bool: checks castling right queen side of black
+    """
 
-#     for i in range(len(table)):
-#         board = chess.Board(table["board (FEN)"][i])
-#         X_board3d = board_3d_attack_int(board.copy())
-#         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
-#         X_parameter = np.array([[board.copy().turn, board.copy().halfmove_clock]])
+    turn = board.turn
+    halfmove_clock = board.halfmove_clock
+    fullmove_number = board.fullmove_number
+    check = board.is_check()
+    checkmate = board.is_checkmate()
+    stalemate = board.is_stalemate()
+    insufficient_material_white = board.has_insufficient_material(chess.WHITE)
+    insufficient_material_black = board.has_insufficient_material(chess.BLACK)
+    seventyfive_moves = board.is_seventyfive_moves()
+    fivefold_repetition = board.is_fivefold_repetition()
+    castling_right_king_side_white = board.has_kingside_castling_rights(chess.WHITE)
+    castling_right_queen_side_white = board.has_queenside_castling_rights(chess.WHITE)
+    castling_right_king_side_black = board.has_kingside_castling_rights(chess.BLACK)
+    castling_right_queen_side_black = board.has_queenside_castling_rights(chess.BLACK)
 
-#         heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
+    return(
+        turn,
+        halfmove_clock,
+        fullmove_number,
+        check, 
+        checkmate, 
+        stalemate, 
+        insufficient_material_white, 
+        insufficient_material_black, 
+        seventyfive_moves, 
+        fivefold_repetition, 
+        castling_right_king_side_white, 
+        castling_right_queen_side_white, 
+        castling_right_king_side_black, 
+        castling_right_queen_side_black
+        )
 
-#         path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}"
+def get_board_pinned(board):
+    """Returns board of pinned black and white pieces
 
-#         path = path_uniquify(path)
+    Args:
+        board (chess.Board): chess board
 
-#         # save heatmap
-#         plt.figure()
-#         plt.matshow(heatmap, cmap = "gnuplot")
-#         plt.axis("off")
-#         plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
-#         plt.close()
+    Returns:
+        list (8, 8): list of a board with pinned black and white pieces
+    """
+    board_pinned = np.zeros((8, 8), dtype = int)
+    for square in chess.SQUARES:
+        if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
+            board_index = square_to_index(square)
+            board_pinned[board_index[0]][board_index[1]] = 1
+    # board_pinned = board_pinned.tolist()
 
-#         plt.figure()
-#         img_heatmap = plt.imread(path + "_heatmap.png")
-#         img_board = plt.imread(path + ".png")
-#         plt.imshow(img_board, interpolation = "nearest")
-#         plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
-#         plt.axis("off")
-#         plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
+    return(board_pinned)
 
-#         os.system("rm " + path + "_heatmap.png")
+def get_board_en_passant(board):
+    """Returns board of possible en passant move
 
-#         plt.close("all")
+    Args:
+        board (chess.Board): chess board
 
-#         print(f"GradCam Board {i} saved...")
+    Returns:
+        list (8, 8): list of a board with square that can be attacked by en passant move
+    """
+    board_en_passant = np.zeros((8, 8), dtype = int)
+    if board.has_legal_en_passant() == True:
+        board_index = square_to_index(board.ep_square)
+        board_en_passant[board_index[0]][board_index[1]] = 1
+    # board_en_passant = board_en_passant.tolist()
 
-        
+    return(board_en_passant)
+
+def get_board_3d_pieces(board):
+    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    0: all squares covered by white pawn
+    1: all squares covered by white knight
+    2: all squares covered by white bishop
+    3: all squares covered by white rook
+    4: all squares covered by white queen
+    5: all squares covered by white king
+    6: all squares covered by black pawn
+    7: all squares covered by black knight
+    8: all squares covered by black bishop
+    9: all squares covered by black rook
+    10: all squares covered by black queen
+    11: all squares covered by black king
+    Args:
+        board (chess.Board): chess board
+
+    Returns:
+        list: (12, 8, 8) list of the input board with {1,0} int values
+    """
+    # initialise board array
+    number_boards = 12 
+    board_pieces = np.zeros((number_boards, 8, 8), dtype = int)
+
+    # for loop over all piece types (pawn, knight, ...)
+    for piece in chess.PIECE_TYPES:
+        # for loop over all squares of white pieces
+        for square in board.pieces(piece, chess.WHITE):
+            # get indices of the individual piece
+            board_index = square_to_index(square)
+            # fill array at board_index with piece value for each piece
+            board_pieces[piece - 1][board_index[0]][board_index[1]] = 1
+
+        # for loop over all squares of black pieces
+        for square in board.pieces(piece, chess.BLACK):
+            # get indices of the individual piece
+            board_index = square_to_index(square)
+            # fill array at board_index with piece value for each piece
+            board_pieces[piece - 1 + 6][board_index[0]][board_index[1]] = 1
+
+    # board_pieces = board_pieces.tolist()
+    return(board_pieces)
+
+def get_board_3d_attacks(board):
+    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    0: all squares being attacked/defended by white pawn
+    1: all squares being attacked/defended by white knight
+    2: all squares being attacked/defended by white bishop
+    3: all squares being attacked/defended by white rook
+    4: all squares being attacked/defended by white queen
+    5: all squares being attacked/defended by white king
+    6: all squares being attacked/defended by black pawn
+    7: all squares being attacked/defended by black knight
+    8: all squares being attacked/defended by black bishop
+    9: all squares being attacked/defended by black rook
+    10: all squares being attacked/defended by black queen
+    11: all squares being attacked/defended by black king
+    Args:
+        board (chess.Board): chess board
+
+    Returns:
+        list: (12, 8, 8) list of the input board with values n (int) where n represents the number of attacks per piece
+    """
+    # initialise board array
+    number_boards = 12 
+    board_attacks = np.zeros((number_boards, 8, 8), dtype = int)
+
+    # get king positions
+    king_pos_white, king_pos_black = board.king(chess.WHITE), board.king(chess.BLACK)
+
+    # for loop over all piece types (pawn, knight, ...)
+    for piece in chess.PIECE_TYPES:
+        # for loop over all squares of white pieces
+        for square in board.pieces(piece, chess.WHITE):
+            # make black king "invisible" by removing him from the board
+            board.remove_piece_at(king_pos_black)
+            # get squares that are attacked by the piece
+            attacks_squares = list(board.attacks(square))
+            for attack_square in attacks_squares:
+                board_index = square_to_index(attack_square)
+                board_attacks[piece - 1][board_index[0]][board_index[1]] += 1
+            # add black king back to the board
+            board.set_piece_at(chess.Square(king_pos_black), chess.Piece(chess.KING, chess.BLACK))
+
+        # for loop over all squares of black pieces
+        for square in board.pieces(piece, chess.BLACK):
+            # make white king "invisible" by removing him from the board
+            board.remove_piece_at(king_pos_white)
+            # get squares that are attacked by the piece
+            attacks_squares = list(board.attacks(square))
+            for attack_square in attacks_squares:
+                board_index = square_to_index(attack_square)
+                board_attacks[piece - 1 + 6][board_index[0]][board_index[1]] += 1
+            # add black white back to the board
+            board.set_piece_at(chess.Square(king_pos_white), chess.Piece(chess.KING, chess.WHITE))
+
+    # board_attacks = board_attacks.tolist()
+    return(board_attacks)
+
+def get_board_3d_2nd_attacks(board):
+    """converts chess board into 3D (6, 8, 8) list with board[i] representing:
+    0: all squares being potentially attacked/defended in the next move by white/black pawn
+    1: all squares being potentially attacked/defended in the next move by white/black knight
+    2: all squares being potentially attacked/defended in the next move by white/black bishop
+    3: all squares being potentially attacked/defended in the next move by white/black rook
+    4: all squares being potentially attacked/defended in the next move by white/black queen
+    5: all squares being potentially attacked/defended in the next move by white/black king
+
+    White/black depends on the current color to move
+
+    Args:
+        board (chess.Board): chess board
+
+    Returns:
+        list: (6, 8, 8) list of the input board with values {0, 1, 2} which represent the number of attacks per piece
+    """
+    # initialise board array
+    number_boards = 6
+    board_2nd_attacks = np.zeros((number_boards, 8, 8), dtype = int)
+
+    # get turn
+    turn = board.turn
+
+    valid_moves = list(board.legal_moves)
+    for move in valid_moves:
+        board.push(move)
+        board_attacks_move_i = np.array(get_board_3d_attacks(board.copy()))
+
+        if turn == chess.WHITE:
+            board_attacks_move_i = board_attacks_move_i[:int(len(board_attacks_move_i) / 2)]
+            board_attacks_move_i[board_attacks_move_i > 1] = - 1000 # arbitrary high negative number
+        elif turn == chess.BLACK:
+            board_attacks_move_i = board_attacks_move_i[int(len(board_attacks_move_i) / 2):]
+            board_attacks_move_i[board_attacks_move_i > 1] = - 1000 # arbitrary high negative number
+
+        board_2nd_attacks = board_2nd_attacks + board_attacks_move_i
+
+        board.pop()
+
+    board_2nd_attacks[board_2nd_attacks > 0] = 1
+    board_2nd_attacks[board_2nd_attacks < 0] = 2
+    # board_2nd_attacks = board_2nd_attacks.tolist()
+
+    return(board_2nd_attacks)
+
+def get_board_3d_pawn_move(board):
+    """converts chess board into 3D (2, 8, 8) list with board[i] representing:
+    0: all squares being a potential move by white pawns
+    1: all squares being a potential move by black pawns
+
+    Args:
+        board (chess.Board): chess board
+    
+    Returns:
+        list: (2, 8, 8) list of the input board with {0,1} values
+    """
+    # initialise board array
+    number_boards = 2
+    board_pawn_move = np.zeros((number_boards, 8, 8), dtype = int)
+
+    board.turn = chess.WHITE
+    for valid_move in board.legal_moves:
+        piece_type = board.piece_type_at(valid_move.from_square)
+        if piece_type == chess.PAWN:
+            square = valid_move.to_square
+            board_index = square_to_index(square)
+            board_pawn_move[0][board_index[0]][board_index[1]] += 1
+
+    board.turn = chess.BLACK
+    for valid_move in board.legal_moves:
+        piece_type = board.piece_type_at(valid_move.from_square)
+        if piece_type == chess.PAWN:
+            square = valid_move.to_square
+            board_index = square_to_index(square)
+            board_pawn_move[1][board_index[0]][board_index[1]] += 1
+    
+    # board_pawn_move = board_pawn_move.tolist()
+    return(board_pawn_move)
+
+def get_board_total(board):
+    """converts chess board into 3D (34, 8, 8) list with board[i] representing:
+    0: all squares covered by white pawn
+    1: all squares covered by white knight
+    2: all squares covered by white bishop
+    3: all squares covered by white rook
+    4: all squares covered by white queen
+    5: all squares covered by white king
+    6: all squares covered by black pawn
+    7: all squares covered by black knight
+    8: all squares covered by black bishop
+    9: all squares covered by black rook
+    10: all squares covered by black queen
+    11: all squares covered by black king
+    12: all squares being attacked/defended by white pawn
+    13: all squares being attacked/defended by white knight
+    14: all squares being attacked/defended by white bishop
+    15: all squares being attacked/defended by white rook
+    16: all squares being attacked/defended by white queen
+    17: all squares being attacked/defended by white king
+    18: all squares being attacked/defended by black pawn
+    19: all squares being attacked/defended by black knight
+    20: all squares being attacked/defended by black bishop
+    21: all squares being attacked/defended by black rook
+    22: all squares being attacked/defended by black queen
+    23: all squares being attacked/defended by black king
+    24: all squares being potentially attacked/defended in the next move by white/black pawn
+    25: all squares being potentially attacked/defended in the next move by white/black knight
+    26: all squares being potentially attacked/defended in the next move by white/black bishop
+    27: all squares being potentially attacked/defended in the next move by white/black rook
+    28: all squares being potentially attacked/defended in the next move by white/black queen
+    29: all squares being potentially attacked/defended in the next move by white/black king
+    30: all squares being a potential move by white pawns
+    31: all squares being a potential move by black pawns
+    32: all squares being pinned by black or white
+    33: all squares being possible en passant moves
+
+    Args:
+        board (chess.Board): chess board
+
+    Returns:
+        list: (34, 8, 8) list of the input board
+    """
+    board_pieces = get_board_3d_pieces(board.copy())
+    board_pawn_move = get_board_3d_pawn_move(board.copy())
+    board_pinned = np.array([get_board_pinned(board.copy())])
+    board_en_passant = np.array([get_board_en_passant(board.copy())])
+    board_attacks = get_board_3d_attacks(board.copy())
+    board_2nd_attacks = get_board_3d_2nd_attacks(board.copy())
+
+    board_total = np.concatenate(
+        (board_pieces,
+        board_attacks,
+        board_2nd_attacks,
+        board_pawn_move,
+        board_pinned,
+        board_en_passant)
+    )
+    
+    board_total = board_total.tolist()
+    return(board_total)

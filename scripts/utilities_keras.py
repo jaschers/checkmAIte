@@ -55,9 +55,9 @@ def load_data(num_runs, name_data, score_cut):
         table = table.reset_index(drop = True)
     print(table)
 
-    X_board3d = table["board3d"].values.tolist()
-    X_parameter = table[["player move", "halfmove clock"]].values.tolist()
-    Y = table["score"].values.tolist()
+    X_board3d = np.array(table["board3d"].values.tolist())
+    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist())
+    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist())
 
     return(X_board3d, X_parameter, Y)
 

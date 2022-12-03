@@ -9,7 +9,7 @@ import os
 import time
 import argparse
 import sys
-np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 
 ######################################## argparse setup ########################################
 script_descr="""
@@ -21,10 +21,10 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
-parser.add_argument("-nd", "--name_data", type = str, required = True, metavar = "-", help = "name of the data folder")
-parser.add_argument("-sc", "--score_cut", type = float, required = True, metavar = "-", default = None, help = "score cut applied on the data (default: None)")
+parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "34_8_8_depth0_mm100_ms15000", help = "name of the data folder")
+parser.add_argument("-sc", "--score_cut", type = float, required = False, metavar = "-", default = None, help = "score cut applied on the data (default: None)")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
-parser.add_argument("-e", "--epochs", type = int, required = True, metavar = "-", help = "Number of epochs for the training")
+parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -42,11 +42,11 @@ print("X parameter shape:", np.shape(X_parameter))
 print("Y score shape:", np.shape(Y))
 
 # norm Y data between -1 and 1
-print("Ymin, Ymax before normalisation:", np.min(Y), np.max(Y))
-Y = Y - np.min(Y)
-Y = Y / np.max(Y)
-# Y = np.asarray(Y / abs(np.array(Y)).max() / 2 + 0.5, dtype=np.float32) # normalization (0 - 1)
-print("Ymin, Ymax after normalisation:", np.min(Y), np.max(Y))
+print("Y_score_min, Y_score_max before normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
+Y = Y.astype("float")
+Y[:,0] = Y[:,0] - np.min(Y[:,0])
+Y[:,0] = Y[:,0] / np.max(Y[:,0])
+print("Y_score_min, Y_score_max after normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
 
 X_board3d_train, X_board3d_val, X_board3d_test = np.split(X_board3d, [-int(len(X_board3d) / 5), -int(len(X_board3d) / 10)]) 
 X_parameter_train, X_parameter_val, X_parameter_test = np.split(X_parameter, [-int(len(X_parameter) / 5), -int(len(X_parameter) / 10)]) 
@@ -121,7 +121,7 @@ model = Concatenate()([model_board3d, model_input_parameter])
 
 model = Dense(128, activation = "relu")(model)
 model = Dense(64, activation = "relu")(model)
-model = Dense(1, name = "score")(model)
+model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 ############################################################################
 
 model = models.Model(inputs = [model_input_board3d, model_input_parameter], outputs = model)
@@ -134,7 +134,7 @@ os.makedirs("model/", exist_ok = True)
 model.compile(optimizer = "adam", loss="mse") # mean_squared_logarithmic_error
 
 os.makedirs("history/", exist_ok = True)
-model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=10), EarlyStopping(monitor="val_loss", patience=30, min_delta=1e-4)], verbose = 2)
+model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=30, min_delta=1e-5), EarlyStopping(monitor="val_loss", patience=50, min_delta=1e-5)], verbose = 2)
 
 model.save(f"model/model_{args.name_experiment}.h5")
 

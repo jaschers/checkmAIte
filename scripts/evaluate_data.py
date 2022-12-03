@@ -18,13 +18,13 @@ Evaluates the residual neural network
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-na", "--name", type = str, required = False, metavar = "-", help = "Name of this particular experiment")
+parser.add_argument("-na", "--name", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 
 args = parser.parse_args()
 ##########################################################################################
 
 # load data
-num_runs = 10
+num_runs = 30
 table = pd.DataFrame()
 for run in range(num_runs):
     # run = 2 #2
