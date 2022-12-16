@@ -24,7 +24,7 @@ args = parser.parse_args()
 ##########################################################################################
 
 # load data
-num_runs = 30
+num_runs = 80
 table = pd.DataFrame()
 for run in range(num_runs):
     # run = 2 #2
@@ -68,6 +68,7 @@ plt.figure()
 plt.hist(scores, bins = 50)
 plt.xlabel("Score")
 plt.ylabel("Number boards")
+plt.yscale("log")
 plt.tight_layout()
 plt.savefig(f"evaluation/data/{args.name}/score_distribution.pdf")
 # plt.show()
