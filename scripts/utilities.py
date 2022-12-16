@@ -214,9 +214,12 @@ def boards_random(num_boards):
     return(boards_random_int, boards_random_parameter, boards_random_score)
 
 def ai_board_score_pred(board, model):
-    board_3d_int = [board_3d_attack_int(board.copy())]
+    board_3d_int = [get_board_total(board.copy())]
     board_3d_int = np.moveaxis(board_3d_int, 1, -1)
-    parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
+    parameters = get_model_input_parameter(board.copy())
+    # print(np.shape(parameters))
+    # parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
+    # print(np.shape(parameters))
     prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] 
     return(prediction_score)
 
@@ -473,24 +476,27 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     # plt.show()
     plt.close()
 
-def plot_hist_difference_total(prediction_val, true_score_val, name):
-    print("Plotting histogram difference total...")
-    difference = prediction_val - true_score_val
+def plot_hist_difference_total(prediction, true, parameter, name):
+    print(f"Plotting {parameter} histogram difference total...")
+    difference = prediction - true
     mean = np.mean(difference)
     median = np.median(difference)
     std = np.std(difference)
     plt.figure()
     plt.hist(difference, bins = 50, label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
-    plt.xlabel("pred. score - true score")
+    # plt.hist(difference, bins = 50, label = "$\mu = {0}$ \nmedian $={1}$ \n$\sigma={2}$".format(mean, median, std))
+    plt.xlabel(f"pred. {parameter} - true {parameter}")
     plt.ylabel("Number of boards")
+    if parameter != "score":
+        plt.yscale("log")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"evaluation/{name}/hist_difference_total_{name}.pdf")
+    plt.savefig(f"evaluation/{name}/{parameter}_hist_difference_total_{name}.pdf")
     # plt.show()
     plt.close()
 
 def plot_hist_difference_binned(prediction_val, true_score_val, name):
-    print("Plotting histogram difference binned...")
+    print("Plotting score histogram difference binned...")
     true_score_min, true_score_max = np.min(true_score_val), np.max(true_score_val)
     bins = np.linspace(true_score_min, true_score_max, 5)
 
@@ -532,7 +538,7 @@ def save_examples(table, name):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
 
-        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['prediction'][i], 2):.2f}_turn_{int(table['turn'][i])}"
+        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['predicted score'][i], 2):.2f}_turn_{int(table['turn'][i])}"
 
         path = path_uniquify(path)
 
@@ -542,9 +548,14 @@ def save_examples(table, name):
         os.system("convert -density 1200 -resize 780x780 " + path + ".svg " + path + ".png")
         os.system("rm " + path + ".svg")
 
-        X_board3d = board_3d_attack_int(board.copy())
+        X_board3d = get_board_total(board.copy())
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
-        X_parameter = np.array([[board.copy().turn, board.copy().halfmove_clock]])
+        X_parameter = get_board_parameters(board.copy())
+        print(X_parameter)
+        X_parameter = X_parameter[:2] + X_parameter[6:]
+        print(X_parameter)
+        print(type(X_parameter))
+        print(np.shape(X_parameter))
 
         heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
 
@@ -945,3 +956,8 @@ def get_board_total(board):
     
     board_total = board_total.tolist()
     return(board_total)
+
+def get_model_input_parameter(board):
+    X_parameter = get_board_parameters(board.copy())
+    X_parameter = X_parameter[:2] + X_parameter[6:]
+    return(X_parameter)
