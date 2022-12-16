@@ -22,7 +22,18 @@ args = parser.parse_args()
 # load data
 print("Loading data...")
 table_pred_val = pd.read_hdf(f"prediction/{args.name}/prediction_val_{args.name}.h5", key = "table")
-# table_examples = pd.read_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
+table_examples = pd.read_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
+
+print(np.shape(table_examples["board3d"][0]))
+
+
+print(table_pred_val)
+print("Number of check boards:", len(np.where(table_pred_val["true check"] == 1)[0]))
+print("Number of checkmate boards:", len(np.where(table_pred_val["true checkmate"] == 1)[0]))
+print("Number of stalemate boards:", len(np.where(table_pred_val["true stalemate"] == 1)[0]))
+print(np.min(table_pred_val["predicted check"]), np.max(table_pred_val["predicted check"]))
+print(np.min(table_pred_val["predicted checkmate"]), np.max(table_pred_val["predicted checkmate"]))
+print(np.min(table_pred_val["predicted stalemate"]), np.max(table_pred_val["predicted stalemate"]))
 
 prediction_val = table_pred_val[["predicted score", "predicted check", "predicted checkmate", "predicted stalemate"]]
 true_val = table_pred_val[["true score", "true check", "true checkmate", "true stalemate"]]
@@ -36,8 +47,14 @@ plot_history(history, args.name)
 
 plot_2d_scattering(prediction_val["predicted score"], true_val["true score"], args.name)
 
-plot_hist_difference_total(prediction_val["predicted score"], true_val["true score"], args.name)
+plot_hist_difference_total(prediction_val["predicted score"], true_val["true score"], "score", args.name)
 
 plot_hist_difference_binned(prediction_val["predicted score"], true_val["true score"], args.name)
+
+plot_hist_difference_total(prediction_val["predicted check"], true_val["true check"], "check", args.name)
+
+plot_hist_difference_total(prediction_val["predicted checkmate"], true_val["true checkmate"], "checkmate", args.name)
+
+plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true stalemate"], "stalemate", args.name)
 
 # save_examples(table_examples, args.name)
