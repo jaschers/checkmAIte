@@ -39,7 +39,7 @@ args = parser.parse_args()
 dt_string = datetime.now().strftime("%b-%d-%Y_%H.%M.%S")
 
 # load neural network model
-model = models.load_model("model/model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1.h5") # model_24_8_8_depth0_mm100_ms10000_resnet128
+model = models.load_model("model/34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5") # model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1
 
 # initialise game
 board = chess.Board()
