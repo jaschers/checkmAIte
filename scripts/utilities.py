@@ -538,9 +538,20 @@ def save_examples(table, name):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
 
-        path = f"evaluation/{name}/examples/board_diff_{np.round(table['difference'][i], 2):.2f}_ts_{np.round(table['true score'][i], 2):.2f}_ps_{np.round(table['predicted score'][i], 2):.2f}_turn_{int(table['turn'][i])}"
+        # difference = table['difference'][i] * 30000 - 15000
+        true_score = table['true score'][i] * 30000 - 15000
+        predicted_score = table['predicted score'][i] * 30000 - 15000
+        difference = predicted_score - true_score
+        if int(table['turn'][i]) == 0:
+            turn = "black"
+        else:
+            turn = "white"
 
+        path = f"evaluation/{name}/examples/board_diff_{difference:.0f}_ts_{true_score:.0f}_ps_{predicted_score:.0f}_turn_{turn}"
+
+        print(path)
         path = path_uniquify(path)
+        print(board.fen())
 
         outputfile = open(path +".svg", "w")
         outputfile.write(boardsvg)
@@ -550,12 +561,7 @@ def save_examples(table, name):
 
         X_board3d = get_board_total(board.copy())
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
-        X_parameter = get_board_parameters(board.copy())
-        print(X_parameter)
-        X_parameter = X_parameter[:2] + X_parameter[6:]
-        print(X_parameter)
-        print(type(X_parameter))
-        print(np.shape(X_parameter))
+        X_parameter = np.array([get_model_input_parameter(board.copy())])
 
         heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
 

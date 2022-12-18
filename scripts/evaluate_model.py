@@ -31,9 +31,6 @@ print(table_pred_val)
 print("Number of check boards:", len(np.where(table_pred_val["true check"] == 1)[0]))
 print("Number of checkmate boards:", len(np.where(table_pred_val["true checkmate"] == 1)[0]))
 print("Number of stalemate boards:", len(np.where(table_pred_val["true stalemate"] == 1)[0]))
-print(np.min(table_pred_val["predicted check"]), np.max(table_pred_val["predicted check"]))
-print(np.min(table_pred_val["predicted checkmate"]), np.max(table_pred_val["predicted checkmate"]))
-print(np.min(table_pred_val["predicted stalemate"]), np.max(table_pred_val["predicted stalemate"]))
 
 prediction_val = table_pred_val[["predicted score", "predicted check", "predicted checkmate", "predicted stalemate"]]
 true_val = table_pred_val[["true score", "true check", "true checkmate", "true stalemate"]]
@@ -57,4 +54,4 @@ plot_hist_difference_total(prediction_val["predicted checkmate"], true_val["true
 
 plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true stalemate"], "stalemate", args.name)
 
-# save_examples(table_examples, args.name)
+save_examples(table_examples, args.name)
