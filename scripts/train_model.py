@@ -3,7 +3,7 @@ from utilities_keras import *
 from tensorflow.keras.optimizers import Adam
 from keras import models, optimizers
 from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input, BatchNormalization, Add, Activation, Concatenate, Dropout
-# from keras.applications import EfficientNetV2L, ResNet152V2, VGG19, EfficientNetV2M, EfficientNetV2S, ResNet50
+# from keras.applications import EfficientNetV2L, ResNet152V2, VGG19, EfficientNetV2M, EfficientNetV2S, ResNet50, MobileNet, InceptionV3, EfficientNetV2B0
 import keras.utils as utils
 from keras.callbacks import CSVLogger, ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 import pandas as pd
@@ -33,6 +33,14 @@ args = parser.parse_args()
 
 # load data
 X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut)
+
+# print(np.shape(X_board3d))
+# X_board3d_1 = X_board3d[:,:24]
+# X_board3d_2 = X_board3d[:,30:]
+# print(np.shape(X_board3d_1))
+# print(np.shape(X_board3d_2))
+# X_board3d = np.concatenate((X_board3d_1, X_board3d_2), axis = 1)
+# print(np.shape(X_board3d))
 
 X_board3d = np.moveaxis(X_board3d, 1, -1)
 X_board3d_shape = np.shape(X_board3d)
@@ -95,9 +103,9 @@ model_input_parameter = Input(shape = X_parameter_shape[1:])
 model = Concatenate()([model_board3d, model_input_parameter])
 
 model = Dense(256, activation = "relu")(model)
-model = Dropout(0.05)(model)
+# model = Dropout(0.05)(model)
 model = Dense(128, activation = "relu")(model)
-model = Dropout(0.05)(model)
+# model = Dropout(0.05)(model)
 model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 # model = Dense(1, name = "score-check-checkmate-stalemate")(model)
 ############################################################################
@@ -105,7 +113,7 @@ model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 # ############################################################################
 # model_input_board3d = Input(shape = X_board3d_shape[1:])
 
-# model_board3d = EfficientNetV2S(weights = None, include_top = True, classes = 1024, classifier_activation = None, input_tensor = model_input_board3d) #, input_shape = (8, 8, 34))
+# model_board3d = EfficientNetV2S(weights = None, include_top = True, classes = 256, classifier_activation = "relu", input_tensor = model_input_board3d) #, input_shape = (8, 8, 34))
 
 # model_input_parameter = Input(shape = X_parameter_shape[1:])
 # # model_parameter = Dense(128, activation = "relu")(model_input_parameter)
@@ -118,7 +126,7 @@ model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 
 # model = Concatenate()([model_board3d.output, model_input_parameter])
 
-# model = Dense(512, activation = "relu")(model)
+# model = Dense(128, activation = "relu")(model)
 # # model = Dense(64, activation = "relu")(model)
 # model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 
@@ -126,10 +134,10 @@ model = Dense(4, name = "score-check-checkmate-stalemate")(model)
 
 # model.summary()
 
-# model.compile(optimizer = "adam", loss="mse") # mean_squared_logarithmic_error
+# model.compile(optimizer=optimizers.Adam(5e-4), loss="mse") # mean_squared_logarithmic_error
 # checkpointer = ModelCheckpoint(filepath = f"model/model_{args.name_experiment}.h5", verbose = 1, save_best_only = True)
 # os.makedirs("history/", exist_ok = True)
-# model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=30, min_delta=1e-5), EarlyStopping(monitor="val_loss", patience=50, min_delta=1e-5)], verbose = 2)
+# model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data=([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor="val_loss", patience=20, min_delta=1e-7), EarlyStopping(monitor="val_loss", patience=40, min_delta=1e-7)], verbose = 2)
 # ############################################################################
 
 model = models.Model(inputs = [model_input_board3d, model_input_parameter], outputs = model)

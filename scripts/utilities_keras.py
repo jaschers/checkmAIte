@@ -49,11 +49,15 @@ def load_data(num_runs, name_data, score_cut):
         end = time.time()
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
+    table = table.reset_index(drop = True)
+    print("Number of events including duplicates:", len(table))
+    table = table.loc[table.astype(str).drop_duplicates().index]
+    table = table.reset_index(drop = True)
+    print("Number of events without duplicates:", len(table))
+
     if score_cut != None:
         if len(score_cut) == 1:
-            table = table.reset_index(drop = True)
             table = table.drop(table[abs(table.score) >= score_cut[0]].index)
-            table = table.reset_index(drop = True)
         else:
             table = table.reset_index(drop = True)
             mask = (abs(table.score) >= score_cut[0]) & (abs(table.score) <= score_cut[1])
