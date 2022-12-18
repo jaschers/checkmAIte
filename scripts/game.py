@@ -15,6 +15,7 @@ import argparse
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+score_max = 15000
 
 # avoid printing tensorflow warnings
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
@@ -36,10 +37,10 @@ args = parser.parse_args()
 ##########################################################################################
 
 # get current date and time
-dt_string = datetime.now().strftime("%b-%d-%Y_%H.%M.%S")
+dt_string = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
 
 # load neural network model
-model = models.load_model("model/34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5") # model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1
+model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5") # model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1
 
 # initialise game
 board = chess.Board()
@@ -104,15 +105,15 @@ while True:
 
         # determine stockfish score of ai move
         analyse_stockfish = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
-        stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = 10000)
+        stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
 
         # reset last move
         board.pop()
 
         # print results
         print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
-        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move * 14863 - 7645), "/", stockfish_score_ai_move)
-        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move * 14863 - 7645), "/", stockfish_score_stockfish_move)
+        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move), "/", stockfish_score_ai_move)
+        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move), "/", stockfish_score_stockfish_move)
         print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
         print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
 
@@ -124,6 +125,17 @@ while True:
         board_counter += 1
 
         display.start(board.fen())
+
+        if board.is_game_over():
+            print("Game over!")
+            print(board.outcome())
+
+            # save game as gif
+            boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
+
+            save_baord_gif(boards_png = boards_png, game_name = dt_string)
+
+            break
 
         # user move
         valid_moves, valid_moves_str = get_valid_moves(board.copy())
