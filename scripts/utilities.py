@@ -27,6 +27,7 @@ engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 best_move = None
 counter = 0
+score_max = 15000
 
 def square_to_index(square):
     squares = np.linspace(0, 8*8 - 1, 8*8, dtype = int)
@@ -216,11 +217,8 @@ def boards_random(num_boards):
 def ai_board_score_pred(board, model):
     board_3d_int = [get_board_total(board.copy())]
     board_3d_int = np.moveaxis(board_3d_int, 1, -1)
-    parameters = get_model_input_parameter(board.copy())
-    # print(np.shape(parameters))
-    # parameters = np.array([[np.float32(board.copy().turn), np.float32(board.copy().halfmove_clock)]])
-    # print(np.shape(parameters))
-    prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] 
+    parameters = np.array([get_model_input_parameter(board.copy())])
+    prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
 def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
