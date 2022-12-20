@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
-parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "34_8_8_depth0_mm100_ms15000", help = "name of the data folder")
+parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "40_8_8_depth0_mm100_ms15000", help = "name of the data folder")
 parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs='+', metavar = "-", default = None, help = "score cut applied on the data (default: None)")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")

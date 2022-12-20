@@ -789,79 +789,156 @@ def get_board_3d_attacks(board):
 
     # get king positions
     king_pos_white, king_pos_black = board.king(chess.WHITE), board.king(chess.BLACK)
-
+    # print("king_pos_white, king_pos_black")
+    # print(king_pos_white, king_pos_black)
     # for loop over all piece types (pawn, knight, ...)
     for piece in chess.PIECE_TYPES:
         # for loop over all squares of white pieces
         for square in board.pieces(piece, chess.WHITE):
             # make black king "invisible" by removing him from the board
+            # print("before remove white")
+            # print(board)
+            # print("_____________")
             board.remove_piece_at(king_pos_black)
+            # print("after remove white")
+            # print(board)
+            # print("_____________")
             # get squares that are attacked by the piece
             attacks_squares = list(board.attacks(square))
             for attack_square in attacks_squares:
                 board_index = square_to_index(attack_square)
                 board_attacks[piece - 1][board_index[0]][board_index[1]] += 1
             # add black king back to the board
+            # print("before set piece at white")
+            # print(board)
+            # print("_____________")
             board.set_piece_at(chess.Square(king_pos_black), chess.Piece(chess.KING, chess.BLACK))
-
+            # print("after set piece at white")
+            # print(board)
+            # print("_____________")
         # for loop over all squares of black pieces
         for square in board.pieces(piece, chess.BLACK):
             # make white king "invisible" by removing him from the board
+            # print("before remove black")
+            # print(board)
+            # print("_____________")
             board.remove_piece_at(king_pos_white)
+            # print("after remove black")
+            # print(board)
+            # print("_____________")
             # get squares that are attacked by the piece
             attacks_squares = list(board.attacks(square))
             for attack_square in attacks_squares:
                 board_index = square_to_index(attack_square)
                 board_attacks[piece - 1 + 6][board_index[0]][board_index[1]] += 1
             # add black white back to the board
+            # print("before set piece at black")
+            # print(board)
+            # print("_____________")
             board.set_piece_at(chess.Square(king_pos_white), chess.Piece(chess.KING, chess.WHITE))
-
+            # print("after set piece at black")
+            # print(board)
+            # print("_____________")
     # board_attacks = board_attacks.tolist()
     return(board_attacks)
 
 def get_board_3d_2nd_attacks(board):
-    """converts chess board into 3D (6, 8, 8) list with board[i] representing:
-    0: all squares being potentially attacked/defended in the next move by white/black pawn
-    1: all squares being potentially attacked/defended in the next move by white/black knight
-    2: all squares being potentially attacked/defended in the next move by white/black bishop
-    3: all squares being potentially attacked/defended in the next move by white/black rook
-    4: all squares being potentially attacked/defended in the next move by white/black queen
-    5: all squares being potentially attacked/defended in the next move by white/black king
-
-    White/black depends on the current color to move
+    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    0: all squares being potentially attacked/defended in the next move by white pawn
+    1: all squares being potentially attacked/defended in the next move by white knight
+    2: all squares being potentially attacked/defended in the next move by white bishop
+    3: all squares being potentially attacked/defended in the next move by white rook
+    4: all squares being potentially attacked/defended in the next move by white queen
+    5: all squares being potentially attacked/defended in the next move by white king
+    6: all squares being potentially attacked/defended in the next move by black pawn
+    7: all squares being potentially attacked/defended in the next move by black knight
+    8: all squares being potentially attacked/defended in the next move by black bishop
+    9: all squares being potentially attacked/defended in the next move by black rook
+    10: all squares being potentially attacked/defended in the next move by black queen
+    11: all squares being potentially attacked/defended in the next move by black king
 
     Args:
         board (chess.Board): chess board
 
     Returns:
-        list: (6, 8, 8) list of the input board with values {0, 1, 2} which represent the number of attacks per piece
+        list: (12, 8, 8) list of the input board with values {0, 1, 2} which represent the number of attacks per piece
     """
+    # print("get_board_3d_2nd_attacks beginning")
+    # print(board)
     # initialise board array
-    number_boards = 6
+    number_boards = 12
     board_2nd_attacks = np.zeros((number_boards, 8, 8), dtype = int)
 
-    # get turn
+    # get original board turn
     turn = board.turn
+    # print("original turn")
+    # print(turn)
+
+    # get 2nd attacks for white
+    board.turn = chess.WHITE
 
     valid_moves = list(board.legal_moves)
+    # print("valid_moves white")
+    # print(valid_moves)
     for move in valid_moves:
+        # print("get_board_3d_2nd_attacks before move white")
+        # print(board)
+        # print("move white")
+        # print(move)
+        # print(board.is_legal(move))
         board.push(move)
-        board_attacks_move_i = np.array(get_board_3d_attacks(board.copy()))
+        # print("get_board_3d_2nd_attacks after move white")
+        # print(board)
+        # print("Is board valid?", board.is_valid())
+        if board.is_valid() == False:
+            board.pop()
+        else:
+            board_attacks_move_i = np.array(get_board_3d_attacks(board.copy()))
 
-        if turn == chess.WHITE:
             board_attacks_move_i = board_attacks_move_i[:int(len(board_attacks_move_i) / 2)]
             board_attacks_move_i[board_attacks_move_i > 1] = - 1000 # arbitrary high negative number
-        elif turn == chess.BLACK:
+
+            board_2nd_attacks[:6] = board_2nd_attacks[:6] + board_attacks_move_i
+
+            board.pop()
+
+    # get 2nd attacks for black
+    board.turn = chess.BLACK
+
+    valid_moves = list(board.legal_moves)
+    # print("valid_moves black")
+    # print(valid_moves)
+    for move in valid_moves:
+        # print("get_board_3d_2nd_attacks before move black")
+        # print(board)
+        # print("move black")
+        # print(move)
+        # print(board.is_legal(move))
+        board.push(move)
+        # print("get_board_3d_2nd_attacks after move black")
+        # print(board)
+        # print("Is board valid?", board.is_valid())
+        if board.is_valid() == False:
+            board.pop()
+        else:
+            board_attacks_move_i = np.array(get_board_3d_attacks(board.copy()))
+
             board_attacks_move_i = board_attacks_move_i[int(len(board_attacks_move_i) / 2):]
             board_attacks_move_i[board_attacks_move_i > 1] = - 1000 # arbitrary high negative number
 
-        board_2nd_attacks = board_2nd_attacks + board_attacks_move_i
+            board_2nd_attacks[6:] = board_2nd_attacks[6:] + board_attacks_move_i
 
-        board.pop()
+            board.pop()
 
     board_2nd_attacks[board_2nd_attacks > 0] = 1
     board_2nd_attacks[board_2nd_attacks < 0] = 2
     # board_2nd_attacks = board_2nd_attacks.tolist()
+
+    # put turn back to original 
+    board.turn = turn
+
+    # print("get_board_3d_2nd_attacks end")
+    # print(board)
 
     return(board_2nd_attacks)
 
