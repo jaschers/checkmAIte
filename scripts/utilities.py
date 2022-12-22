@@ -285,7 +285,7 @@ def get_ai_move(board, model, depth, verbose_minimax):
     max_move = None
     max_eval = -np.inf
 
-    for valid_move in board.legal_moves:
+    for valid_move in tqdm(board.legal_moves):
         board.push(valid_move)
         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
         eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
@@ -485,8 +485,8 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     # plt.hist(difference, bins = 50, label = "$\mu = {0}$ \nmedian $={1}$ \n$\sigma={2}$".format(mean, median, std))
     plt.xlabel(f"pred. {parameter} - true {parameter}")
     plt.ylabel("Number of boards")
-    if parameter != "score":
-        plt.yscale("log")
+    # if parameter != "score":
+    plt.yscale("log")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"evaluation/{name}/{parameter}_hist_difference_total_{name}.pdf")
