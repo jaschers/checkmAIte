@@ -177,7 +177,7 @@ def board_score(board, depth = 0):
     score_dict = {"15000": 15000, "14999": 14000, "14998": 13000, "14997": 12000, "14996": 11000, "14995": 10000, "14994": 9000, "14993": 8000, "-15000": -15000, "-14999": -14000, "-14998": -13000, "-14997": -12000, "-14996": -11000, "-14995": -10000, "-14994": -9000, "-14993": -8000}
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board.copy(), chess.engine.Limit(depth = depth))
-    score = result["score"].white().score(mate_score = 15000)
+    score = result["score"].white().score(mate_score = score_max)
     if str(score) in score_dict:
         score = score_dict[f"{score}"]
     engine.quit()
@@ -285,7 +285,7 @@ def get_ai_move(board, model, depth, verbose_minimax):
     max_move = None
     max_eval = -np.inf
 
-    for valid_move in board.legal_moves:
+    for valid_move in tqdm(list(board.legal_moves)):
         board.push(valid_move)
         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
         eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
@@ -310,6 +310,15 @@ def save_board_png(board, game_name, counter):
     outputfile.close()
     os.system(f"convert -density 1200 -resize 780x780 games/{game_name}/board{counter}.svg games/{game_name}/board{counter}.png")
     os.system(f"rm games/{game_name}/board{counter}.svg")
+
+def delete_board_png(game_name, counter):
+    """deletes the board saved as games/{game_name}/board{counter}.png
+
+    Args:
+        game_name (str): name of the current chess game
+        counter (int): board move counter
+    """
+    os.system(f"rm games/{game_name}/board{counter}.png")
 
 def save_baord_gif(boards_png, game_name):
     """Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
@@ -364,7 +373,7 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
         board.push(valid_moves[i])
 
         result = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
-        stockfish_score = result["score"].white().score(mate_score = 10000)
+        stockfish_score = result["score"].white().score(mate_score = score_max)
         stockfish_scores.append(stockfish_score)
 
         board.pop()
@@ -537,8 +546,8 @@ def save_examples(table, name):
         boardsvg = chess.svg.board(board = board.copy())
 
         # difference = table['difference'][i] * 30000 - 15000
-        true_score = table['true score'][i] * 30000 - 15000
-        predicted_score = table['predicted score'][i] * 30000 - 15000
+        true_score = table['true score'][i] * 2 * score_max - score_max
+        predicted_score = table['predicted score'][i] * 2 * score_max - score_max
         difference = predicted_score - true_score
         if int(table['turn'][i]) == 0:
             turn = "black"
