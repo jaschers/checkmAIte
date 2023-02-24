@@ -31,7 +31,8 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
-parser.add_argument("-v", "--verbose", type = bool, required = True, metavar = "-", help = "Verbose True or False")
+parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
+parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -44,10 +45,13 @@ model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9
 
 # initialise game
 board = chess.Board()
+board = chess.Board("r3k2r/pb3pp1/2pbpq1p/3p3P/3N2P1/2P2Q1R/PP2BP2/R3K3 w Qkq - 0 19")
 
 # save chess board as svg
-os.makedirs(f"games/{dt_string}", exist_ok = True)
-save_board_png(board = board.copy(), game_name = dt_string, counter = 1)
+if args.save == 1:
+    os.makedirs(f"games/{dt_string}", exist_ok = True)
+    save_board_png(board = board.copy(), game_name = dt_string, counter = 1)
+    board_counter = 2
 
 # display chess board
 display.start(board.fen())
@@ -55,17 +59,17 @@ print("________________")
 
 user_input = None
 
-board_counter = 2
 while True:
     # check if game is over
     if board.is_game_over():
         print("Game over!")
         print(board.outcome())
 
-        # save game as gif
-        boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
+        if args.save == 1:
+            # save game as gif
+            boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
 
-        save_baord_gif(boards_png = boards_png, game_name = dt_string)
+            save_baord_gif(boards_png = boards_png, game_name = dt_string)
 
         break
 
@@ -111,18 +115,21 @@ while True:
         board.pop()
 
         # print results
-        print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
-        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move), "/", stockfish_score_ai_move)
-        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move), "/", stockfish_score_stockfish_move)
-        print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
-        print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
+        if args.verbose == 1:
+            print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
+            print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move), "/", stockfish_score_ai_move)
+            print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move), "/", stockfish_score_stockfish_move)
+            print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
+            print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
+        else:
+            print("AI move:", best_move_ai)
 
         print("________________")
         board.push(best_move_ai)
 
-        save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
-
-        board_counter += 1
+        if args.save == 1:
+            save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
+            board_counter += 1
 
         display.start(board.fen())
 
@@ -130,10 +137,11 @@ while True:
             print("Game over!")
             print(board.outcome())
 
-            # save game as gif
-            boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
+            if args.save == 1:
+                # save game as gif
+                boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
 
-            save_baord_gif(boards_png = boards_png, game_name = dt_string)
+                save_baord_gif(boards_png = boards_png, game_name = dt_string)
 
             break
 
@@ -151,15 +159,18 @@ while True:
     if user_input == "undo":
         board.pop()
         board.pop()
+        if args.save == 1:
+            delete_board_png(dt_string, board_counter - 1)
+            delete_board_png(dt_string, board_counter - 2)
+            board_counter -= 3
     else:
         user_move = chess.Move.from_uci(user_input)
         board.push(user_move)
 
     print("________________")
-
-    save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
-
-    board_counter += 1
+    if args.save == 1:
+        save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
+        board_counter += 1
 
     display.start(board.fen())
 
