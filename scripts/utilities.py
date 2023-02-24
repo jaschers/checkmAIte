@@ -485,8 +485,9 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     # plt.hist(difference, bins = 50, label = "$\mu = {0}$ \nmedian $={1}$ \n$\sigma={2}$".format(mean, median, std))
     plt.xlabel(f"pred. {parameter} - true {parameter}")
     plt.ylabel("Number of boards")
-    if parameter != "score":
-        plt.yscale("log")
+    # if parameter != "score":
+    plt.yscale("log")
+    plt.xlim(-1, 1)
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"evaluation/{name}/{parameter}_hist_difference_total_{name}.pdf")
@@ -663,6 +664,7 @@ def get_board_parameters(board):
     insufficient_material_black = board.has_insufficient_material(chess.BLACK)
     seventyfive_moves = board.is_seventyfive_moves()
     fivefold_repetition = board.is_fivefold_repetition()
+    # threefold_repetition = board.is_repetition()
     castling_right_king_side_white = board.has_kingside_castling_rights(chess.WHITE)
     castling_right_queen_side_white = board.has_queenside_castling_rights(chess.WHITE)
     castling_right_king_side_black = board.has_kingside_castling_rights(chess.BLACK)
