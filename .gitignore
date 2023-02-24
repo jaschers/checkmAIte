@@ -15,3 +15,4 @@ digital_secrets/
 
 .DS_Store
 .git/
+data.csv
