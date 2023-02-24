@@ -7,10 +7,13 @@ from keras.layers import Conv2D, GlobalMaxPooling2D, Dense, Flatten, Input, Batc
 import keras.utils as utils
 from keras.callbacks import CSVLogger, ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 import pandas as pd
+import dask.dataframe as dd
+import dask.array as da
 import os
 import time
 import argparse
 import sys
+import psutil
 # np.set_printoptions(threshold=sys.maxsize)
 
 ######################################## argparse setup ########################################
@@ -22,50 +25,152 @@ Trains the residual neural network
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
+parser.add_argument("-r", "--runs", type = int, required = False, metavar = "-", help = "Number of runs used for training")
 parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "40_8_8_depth0_mm100_ms15000", help = "name of the data folder")
 parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs='+', metavar = "-", default = None, help = "score cut applied on the data (default: None)")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")
+parser.add_argument("-bs", "--batch_size", type = int, required = False, metavar = "-", default = 1024, help = "Batch size used for training")
+parser.add_argument("-g", "--generator", type = str, required = False, metavar = "-", default = "y", help = "Use of generator for training (required for large data sets and limited RAM)")
 
 args = parser.parse_args()
 ##########################################################################################
 
 # load data
-X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut)
+print("Memory usage before loading data:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
 
-# print(np.shape(X_board3d))
-# X_board3d_1 = X_board3d[:,:24]
-# X_board3d_2 = X_board3d[:,30:]
-# print(np.shape(X_board3d_1))
-# print(np.shape(X_board3d_2))
-# X_board3d = np.concatenate((X_board3d_1, X_board3d_2), axis = 1)
-# print(np.shape(X_board3d))
+if args.generator == "n":
+    X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut)
 
-X_board3d = np.moveaxis(X_board3d, 1, -1)
-X_board3d_shape = np.shape(X_board3d)
-X_parameter_shape = np.shape(X_parameter)
+    X_board3d = np.moveaxis(X_board3d, 1, -1)
+    X_board3d_shape = np.shape(X_board3d)
+    X_parameter_shape = np.shape(X_parameter)
 
-print("X board3d shape:", np.shape(X_board3d))
-print("X parameter shape:", np.shape(X_parameter))
-print("Y score shape:", np.shape(Y))
+    print("X board3d shape:", np.shape(X_board3d))
+    print("X parameter shape:", np.shape(X_parameter))
+    print("Y score shape:", np.shape(Y))
 
-# norm Y data between -1 and 1
-print("Y_score_min, Y_score_max before normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
-print("Y_score unique", np.unique(Y[:,0]))
-Y = Y.astype("float")
-Y[:,0] = Y[:,0] - np.min(Y[:,0])
-Y[:,0] = Y[:,0] / np.max(Y[:,0])
-print("Y_score_min, Y_score_max after normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
-# Y = Y[:,0]
+    # norm Y data between -1 and 1
+    print("Y_score_min, Y_score_max before normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
+    print("Y_score unique", np.unique(Y[:,0]))
+    Y = Y.astype("float")
+    Y[:,0] = Y[:,0] - np.min(Y[:,0])
+    Y[:,0] = Y[:,0] / np.max(Y[:,0])
+    print("Y_score_min, Y_score_max after normalisation:", np.min(Y[:,0]), np.max(Y[:,0]))
+    # Y = Y[:,0]
 
-X_board3d_train, X_board3d_val, X_board3d_test = np.split(X_board3d, [-int(len(X_board3d) / 5), -int(len(X_board3d) / 10)]) 
-X_parameter_train, X_parameter_val, X_parameter_test = np.split(X_parameter, [-int(len(X_parameter) / 5), -int(len(X_parameter) / 10)]) 
-Y_train, Y_val, Y_test = np.split(Y, [-int(len(Y) / 5), -int(len(Y) / 10)]) 
+    X_board3d_train, X_board3d_val, X_board3d_test = np.split(X_board3d, [-int(len(X_board3d) / 5), -int(len(X_board3d) / 10)]) 
+    X_parameter_train, X_parameter_val, X_parameter_test = np.split(X_parameter, [-int(len(X_parameter) / 5), -int(len(X_parameter) / 10)]) 
+    Y_train, Y_val, Y_test = np.split(Y, [-int(len(Y) / 5), -int(len(Y) / 10)]) 
 
-# print(np.shape([X_board3d, X_parameter]), np.shape(X_val), np.shape(X_test))
-# print(np.shape(Y_train), np.shape(Y_val), np.shape(Y_test))
-print("Number of training, validation and test data:", len(X_board3d_train), len(X_board3d_val), len(X_board3d_test))
+    print("Number of training, validation and test data:", len(X_board3d_train), len(X_board3d_val), len(X_board3d_test))
+
+    print("Memory usage after loading data:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
+
+elif args.generator == "y":
+    # load data
+    print("in elif args.generator")
+    table_dd = dd.read_hdf(os.path.join("data", "3d", args.name_data, "data45*.h5"), key = "table")
+    # table_dd = dd.read_hdf("data/3d/40_8_8_depth0_mm100_ms15000_dd/data0.h5", key = "table")
+
+    # chunksize = args.batch_size * 1
+
+    # get total dataset_size after score cut
+    dataset_size = len(table_dd.index)
+    print("Total number of boards:", dataset_size)
+
+    # apply score cut
+    if args.score_cut != None:
+        if len(args.score_cut) == 1:
+            mask = (abs(table_dd.score) >= args.score_cut[0])
+        else:
+            mask = (abs(table_dd.score) >= args.score_cut[0]) & (abs(table_dd.score) <= args.score_cut[1])
+        mask = ~mask
+        table_dd = table_dd[mask]
+        table_dd = table_dd.reset_index(drop = True)
+
+    # get total dataset_size after score cut
+    dataset_size = len(table_dd.index)
+    print("Total number of boards after score cut:", dataset_size)
+
+    # norm score values between 0 and 1
+    table_dd = table_dd.astype({"score": "float"})
+
+    score_max = 15000
+    table_dd["score"] = table_dd["score"] + score_max
+    table_dd["score"] = table_dd["score"] / (2 * score_max)
+
+    dataset_split_frac = np.array([0.8, 0.1, 0.1])
+    batch_size = args.batch_size #1024 # 32
+
+    table_dd_train, table_dd_val, table_dd_test = table_dd.random_split(dataset_split_frac)  
+    # print("Total number of train/val/test boards after score cut:", dataset_size * dataset_split_frac)
+
+    board3d_columns = [f"sq{counter}" for counter in range(2560)]
+    X_board3d_train, X_board3d_val, X_board3d_test = table_dd_train[board3d_columns].to_dask_array(), table_dd_val[board3d_columns].to_dask_array(), table_dd_test[board3d_columns].to_dask_array()
+
+    X_board3d_train.compute_chunk_sizes()
+    X_board3d_val.compute_chunk_sizes()
+    X_board3d_test.compute_chunk_sizes()
+
+    print("X_board3d_train chunks before reshape", X_board3d_train.chunks)
+
+    X_board3d_train, X_board3d_val, X_board3d_test = X_board3d_train.reshape(-1, 40, 8, 8), X_board3d_val.reshape(-1, 40, 8, 8), X_board3d_test.reshape(-1, 40, 8, 8)
+    X_board3d_train, X_board3d_val, X_board3d_test = np.moveaxis(X_board3d_train, 1, -1), np.moveaxis(X_board3d_val, 1, -1), np.moveaxis(X_board3d_test, 1, -1)
+
+    print("X_board3d_train chunks after reshape", X_board3d_train.chunks)
+    print("X_board3d_val chunks after reshape", X_board3d_val.chunks)
+    print("X_board3d_test chunks after reshape", X_board3d_test.chunks)
+
+    # X_board3d_train = X_board3d_train.rechunk({0: chunksize})
+    # X_board3d_val = X_board3d_val.rechunk({0: chunksize})
+
+    # print("X_board3d_train chunks after rechunk", X_board3d_train.chunks)
+
+    train_size, val_size, test_size = len(X_board3d_train), len(X_board3d_val), len(X_board3d_test)
+    steps_per_epoch = np.floor(np.array([train_size, val_size, test_size]) / batch_size)
+    print("steps_per_epoch", steps_per_epoch)
+    
+    print("Total number of train/val/test boards after score cut:", train_size, val_size, test_size)
+
+    X_parameter_train = table_dd_train[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].to_dask_array()
+    X_parameter_val = table_dd_val[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].to_dask_array()
+    X_parameter_test = table_dd_test[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].to_dask_array()
+
+    X_parameter_train.compute_chunk_sizes()
+    X_parameter_val.compute_chunk_sizes()
+    X_parameter_test.compute_chunk_sizes()
+
+    # X_parameter_train = X_parameter_train.rechunk({0: chunksize})
+    # X_parameter_val = X_parameter_val.rechunk({0: chunksize})
+
+    print("X_parameter_train chunks", X_parameter_train.chunks)
+    print("X_parameter_val chunks", X_parameter_val.chunks)
+    print("X_parameter_test chunks", X_parameter_test.chunks)
+
+    Y_train = table_dd_train[["score", "check", "checkmate", "stalemate"]].to_dask_array()
+    Y_val = table_dd_val[["score", "check", "checkmate", "stalemate"]].to_dask_array()
+    Y_test = table_dd_test[["score", "check", "checkmate", "stalemate"]].to_dask_array()
+
+    Y_train.compute_chunk_sizes()
+    Y_val.compute_chunk_sizes()
+    Y_test.compute_chunk_sizes()
+
+    # Y_train = Y_train.rechunk({0: chunksize})
+    # Y_val = Y_val.rechunk({0: chunksize})
+
+    print("Y_train chunks", Y_train.chunks)
+    print("Y_val chunks", Y_val.chunks)
+    print("Y_test chunks", Y_test.chunks)
+
+    print("Memory usage after loading data:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
+
+    # hard coded - needs to be updated
+    X_board3d_shape = (0, 8, 8, 40)
+    X_parameter_shape = (0, 10)
+    board3d_columns = [f"sq{counter}" for counter in range(2560)]
+
+
 
 # # # define model
 # ############################################################################
@@ -151,7 +256,13 @@ os.makedirs("model/", exist_ok = True)
 model.compile(optimizer = Adam(learning_rate = 1e-4), loss="mse") # mean_squared_logarithmic_error
 checkpointer = ModelCheckpoint(filepath = f"model/model_{args.name_experiment}.h5", verbose = 1, save_best_only = True)
 os.makedirs("history/", exist_ok = True)
-model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = 32, validation_data = ([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 20, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 40, min_delta = 1e-7)], verbose = 2)
+
+if args.generator == "n":
+    model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = args.batch_size, validation_data = ([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 20, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 40, min_delta = 1e-7)], verbose = 2)
+elif args.generator == "y":
+    # model.fit(dask_data_generator(X_board3d_train, X_parameter_train, Y_train, train_size, batch_size), steps_per_epoch = steps_per_epoch[0], epochs = args.epochs, validation_data = dask_data_generator(X_board3d_val, X_parameter_val, Y_val, val_size, batch_size), validation_steps = steps_per_epoch[1], callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 20, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 40, min_delta = 1e-7)], verbose = 1)
+    model.fit(dask_data_generator(X_board3d_train, X_parameter_train, Y_train, train_size, batch_size), steps_per_epoch = steps_per_epoch[0], epochs = args.epochs, validation_data = dask_data_generator(X_board3d_val, X_parameter_val, Y_val, val_size, batch_size), validation_steps = steps_per_epoch[1], verbose = 1)
+
 
 # model.save(f"model/model_{args.name_experiment}.h5")
 
