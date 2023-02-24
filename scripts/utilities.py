@@ -16,7 +16,6 @@ import sys
 from keras import models
 import tensorflow as tf
 
-
 np.set_printoptions(threshold=sys.maxsize)
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -221,79 +220,108 @@ def ai_board_score_pred(board, model):
     prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
-def minimax(board, model, depth, alpha, beta, maximizing_player, verbose_minimax = False):
-    # global counter
-    # counter += 1
-    # print(counter)
+# def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
+#     if depth < 0 or type(depth) != int:
+#         raise ValueError("Depth needs to be int and greater than 0")
+
+#     if depth == 0 or board.is_game_over() == True:
+#         prediction = ai_board_score_pred(board.copy(), model)
+ 
+#         return(prediction)
+
+#     # maximizing_player == True -> AI's turn
+#     if maximizing_player == True:
+#         max_eval = - np.inf
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, verbose_minimax)
+#             board.pop()
+#             if eval > max_eval:
+#                 max_eval = eval
+#             alpha = max(eval, alpha)
+#             if beta <= alpha:
+#                 break
+#         return(max_eval)
+
+#     # maximizing_player == False -> player's turn
+#     else:
+#         min_eval = np.inf
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, verbose_minimax)
+#             board.pop()
+#             if eval < min_eval:
+#                 min_eval = eval
+#             beta = min(eval, beta)
+#             if beta <= alpha:
+#                 break
+#         return(min_eval)
+
+def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
     if depth < 0 or type(depth) != int:
         raise ValueError("Depth needs to be int and greater than 0")
 
+    # Check if the current game state is already in the transposition table
+    hash_value = board.fen()
+    if hash_value in transposition_table:
+        return(transposition_table[hash_value])
+
     if depth == 0 or board.is_game_over() == True:
         prediction = ai_board_score_pred(board.copy(), model)
-        
-        if verbose_minimax == True:
-            print(board)
-            print(f"Maximizing player == {maximizing_player}")
-            print("prediction", prediction * 14863 - 7645)
-            print("_____________")
+ 
+        # Add the current game state and its evaluation to the transposition table
+        transposition_table[hash_value] = prediction
         return(prediction)
 
     # maximizing_player == True -> AI's turn
     if maximizing_player == True:
-        # print("maximizing_player == True", f", depth = {depth}")
         max_eval = - np.inf
         for valid_move in board.legal_moves:
             board.push(valid_move)
-            eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, verbose_minimax)
+            eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
             board.pop()
             if eval > max_eval:
                 max_eval = eval
             alpha = max(eval, alpha)
             if beta <= alpha:
                 break
-        # print("2", max_eval, best_move)
-        if verbose_minimax == True:
-            print(board)
-            print(f"Maximizing player == {maximizing_player}")
-            print("max_eval", max_eval * 14863 - 7645)
-            print("_____________")
+        
+        # Add the current game state and its evaluation to the transposition table
+        transposition_table[hash_value] = max_eval
         return(max_eval)
 
     # maximizing_player == False -> player's turn
     else:
-        # print("maximizing_player == False", f", depth = {depth}")
         min_eval = np.inf
         for valid_move in board.legal_moves:
             board.push(valid_move)
-            eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, verbose_minimax)
+            eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
             board.pop()
             if eval < min_eval:
                 min_eval = eval
             beta = min(eval, beta)
             if beta <= alpha:
                 break
-        #print("3", min_eval, best_move)
-        if verbose_minimax == True:
-            print(board)
-            print(f"Maximizing player == {maximizing_player}")
-            print("min_eval", min_eval * 14863 - 7645)
-            print("_____________")
+        
+        # Add the current game state and its evaluation to the transposition table
+        transposition_table[hash_value] = min_eval
         return(min_eval)
 
 
-def get_ai_move(board, model, depth, verbose_minimax):
+def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
     max_move = None
     max_eval = -np.inf
 
     for valid_move in tqdm(list(board.legal_moves)):
         board.push(valid_move)
         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-        eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, verbose_minimax = verbose_minimax)
+        eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
         board.pop()
         if eval > max_eval:
             max_eval = eval
             max_move = valid_move
-  
+    # print(transposition_table)
+    print(len(transposition_table))
     return(max_move, max_eval)
 
 def save_board_png(board, game_name, counter):

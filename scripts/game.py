@@ -45,7 +45,10 @@ model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9
 
 # initialise game
 board = chess.Board()
-board = chess.Board("r3k2r/pb3pp1/2pbpq1p/3p3P/3N2P1/2P2Q1R/PP2BP2/R3K3 w Qkq - 0 19")
+# board = chess.Board("r3k2r/pb3pp1/2pbpq1p/3p3P/3N2P1/2P2Q1R/PP2BP2/R3K3 w Qkq - 0 19")
+
+# initialsie transportation table
+transposition_table = {}
 
 # save chess board as svg
 if args.save == 1:
@@ -86,7 +89,7 @@ while True:
 
         # get best move ai
         # start_time = time.time()
-        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, verbose_minimax = False)
+        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, transposition_table = transposition_table, verbose_minimax = False)
         # end_time = time.time()
         # print(end_time - start_time)
         # get best move stockfish and ranking of all valid moves
