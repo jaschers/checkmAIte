@@ -494,8 +494,8 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     # plt.hist(difference, bins = 50, label = "$\mu = {0}$ \nmedian $={1}$ \n$\sigma={2}$".format(mean, median, std))
     plt.xlabel(f"pred. {parameter} - true {parameter}")
     plt.ylabel("Number of boards")
-    if parameter != "score":
-        plt.yscale("log")
+    # if parameter != "score":
+    plt.yscale("log")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"evaluation/{name}/{parameter}_hist_difference_total_{name}.pdf")
