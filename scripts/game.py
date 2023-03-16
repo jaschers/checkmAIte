@@ -10,7 +10,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import argparse
-# import time
+import psutil
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -45,7 +45,7 @@ model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9
 
 # initialise game
 board = chess.Board()
-# board = chess.Board("r3k2r/pb3pp1/2pbpq1p/3p3P/3N2P1/2P2Q1R/PP2BP2/R3K3 w Qkq - 0 19")
+# board = chess.Board("1k5r/nppr1pbp/4pnp1/1P1p4/Q2P1B2/2P1P3/1P1NbPPP/R4RK1 w - - 3 16")
 
 # initialsie transportation table
 transposition_table = {}
@@ -57,8 +57,7 @@ if args.save == 1:
     board_counter = 2
 
 # display chess board
-display.start(board.fen())
-print("________________")
+board_img = display_chessboard(board)
 
 user_input = None
 
@@ -89,7 +88,9 @@ while True:
 
         # get best move ai
         # start_time = time.time()
-        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, transposition_table = transposition_table, verbose_minimax = False)
+        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, transposition_table = transposition_table, verbose_minimax = True)
+        # print("best_move_ai, prediction_minimax", best_move_ai, prediction_minimax)
+        # print(transposition_table)
         # end_time = time.time()
         # print(end_time - start_time)
         # get best move stockfish and ranking of all valid moves
@@ -124,6 +125,11 @@ while True:
             print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move), "/", stockfish_score_stockfish_move)
             print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
             print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
+            print("Lentgh transposition table:", len(transposition_table))
+            print("Board FEN:", board.fen())
+            print("Memory usage:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1), "GB")
+
+            
         else:
             print("AI move:", best_move_ai)
 
@@ -134,7 +140,7 @@ while True:
             save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
             board_counter += 1
 
-        display.start(board.fen())
+        board_img = display_chessboard(board, board_img = board_img)
 
         if board.is_game_over():
             print("Game over!")
@@ -175,6 +181,6 @@ while True:
         save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
         board_counter += 1
 
-    display.start(board.fen())
+    board_img = display_chessboard(board, board_img = board_img)
 
 
