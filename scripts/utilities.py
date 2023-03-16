@@ -18,6 +18,10 @@ import tensorflow as tf
 import dask
 import dask.array as da
 from dask.diagnostics import ProgressBar
+import cairosvg
+from PIL import Image, ImageTk
+import tkinter as tk
+import io
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -223,55 +227,58 @@ def ai_board_score_pred(board, model):
     prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
+# def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
+#     if depth < 0 or type(depth) != int:
+#         raise ValueError("Depth needs to be int and greater than 0")
 
-    # Check if the current game state is already in the transposition table
-    hash_value = board.fen()
-    if hash_value in transposition_table:
-        return(transposition_table[hash_value])
+#     # Check if the current game state is already in the transposition table
+#     hash_value = board.fen()
+#     if hash_value in transposition_table:
+#         return(transposition_table[hash_value])
 
-    if depth == 0 or board.is_game_over() == True:
-        prediction = ai_board_score_pred(board.copy(), model)
+#     if depth == 0 or board.is_game_over() == True:
+#         prediction = ai_board_score_pred(board.copy(), model)
  
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = prediction
-        return(prediction)
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = prediction
+#         return(prediction)
 
-    # maximizing_player == True -> AI's turn
-    if maximizing_player == True:
-        max_eval = - np.inf
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
-            board.pop()
-            if eval > max_eval:
-                max_eval = eval
-            alpha = max(eval, alpha)
-            if beta <= alpha:
-                break
+#     # maximizing_player == True -> AI's turn
+#     if maximizing_player == True:
+#         max_eval = - np.inf
+#         ordered_moves = order_moves(board)
+#         for valid_move in ordered_moves:
+#             board.push(valid_move)
+#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
+#             board.pop()
+#             if eval > max_eval:
+#                 max_eval = eval
+#             alpha = max(eval, alpha)
+#             # print("maximizing player alpha", alpha)
+#             if beta <= alpha:
+#                 break
         
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = max_eval
-        return(max_eval)
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = max_eval
+#         return(max_eval)
 
-    # maximizing_player == False -> player's turn
-    else:
-        min_eval = np.inf
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
-            board.pop()
-            if eval < min_eval:
-                min_eval = eval
-            beta = min(eval, beta)
-            if beta <= alpha:
-                break
+#     # maximizing_player == False -> player's turn
+#     else:
+#         min_eval = np.inf
+#         ordered_moves = order_moves(board)
+#         for valid_move in ordered_moves:
+#             board.push(valid_move)
+#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
+#             board.pop()
+#             if eval < min_eval:
+#                 min_eval = eval
+#             beta = min(eval, beta)
+#             if beta <= alpha:
+#                 break
         
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = min_eval
-        return(min_eval)
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = min_eval
+#         return(min_eval)
 
 
 def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
@@ -324,19 +331,172 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = min_eval
         return(min_eval)
+    
+# def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+#     if depth < 0 or type(depth) != int:
+#         raise ValueError("Depth needs to be int and greater than 0")
+
+#     hash_value = board.fen()
+#     # if hash_value in transposition_table:
+#     #     print("transposition_table 1")
+#     #     print(hash_value)
+#     #     print(transposition_table)
+#     #     return(transposition_table[hash_value])
+
+#     if depth == 0 or board.is_game_over():
+#         # Check if the current game state is already in the transposition table
+#         if hash_value in transposition_table:
+#             # print("transposition_table")
+#             return(transposition_table[hash_value])
+#         else:
+#             prediction = ai_board_score_pred(board.copy(), model)
+#             # Add the current game state and its evaluation to the transposition table
+#             transposition_table[hash_value] = (prediction, best_move)
+#             return(prediction, best_move)
+
+#     if maximizing_player:
+#         max_eval = -np.inf
+#         ordered_moves = order_moves(board, transposition_table)
+#         if verbose_minimax == True:
+#             ordered_moves = tqdm(ordered_moves)
+#         for valid_move in ordered_moves:
+#             board.push(valid_move)
+#             eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, best_move, verbose_minimax = False)
+#             board.pop()
+#             if eval > max_eval:
+#                 max_eval = eval
+#                 best_move = valid_move
+#             alpha = max(alpha, eval)
+#             if alpha >= beta:
+#                 break
+
+#         # Add the current game state and its evaluation to the transposition table
+#         if hash_value == chess.Board("rnbqkb1r/pppppppp/7n/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2").fen():
+#             print("max_eval, best_move", max_eval, best_move)
+#         transposition_table[hash_value] = (max_eval, best_move)
+#         return (max_eval, best_move)
+
+#     else:
+#         min_eval = np.inf
+#         ordered_moves = order_moves(board, transposition_table)
+#         for valid_move in ordered_moves:
+#             board.push(valid_move)
+#             eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
+#             board.pop()
+#             if eval < min_eval:
+#                 min_eval = eval
+#                 best_move_min_player = valid_move
+#             beta = min(beta, eval)
+#             if beta <= alpha:
+#                 break
+
+#         # Add the current game state and its evaluation to the transposition table
+#         if hash_value == chess.Board("rnbqkb1r/pppppppp/7n/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2").fen():
+#             print("min_eval, best_move_min_player", min_eval, best_move_min_player)
+#         transposition_table[hash_value] = (min_eval, best_move_min_player)
+#         return (min_eval, best_move)
+    
+
+def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+    if depth < 0 or type(depth) != int:
+        raise ValueError("Depth needs to be int and greater than 0")
+
+    # # Check if this position is already in the transposition table
+    hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
+    if hash_value in transposition_table:
+        entry = transposition_table[hash_value]
+        # print("hash_value", hash_value)
+        # print("transposition_table[hash_value]", transposition_table[hash_value])
+        # Check if the stored depth is greater than or equal to the current depth
+        if entry["depth"] >= depth:
+            # Use the stored evaluation and best move
+            if entry["flag"] == "exact":
+                return entry["eval"], entry["best_move"]
+            elif entry["flag"] == "lower_bound":
+                alpha = max(alpha, entry["eval"])
+            elif entry["flag"] == "upper_bound":
+                beta = min(beta, entry["eval"])
+            if alpha >= beta:
+                return entry["eval"], entry["best_move"]
+
+    if depth == 0 or board.is_game_over():
+        prediction = ai_board_score_pred(board.copy(), model)
+        # Add the current game state and its evaluation to the transposition table
+        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
+        return(prediction, None)
+
+    if maximizing_player:
+        max_eval = -np.inf
+        ordered_moves = order_moves(board, transposition_table, maximizing_player)
+        if verbose_minimax == True:
+            ordered_moves = tqdm(ordered_moves)
+        for move in ordered_moves:
+            board.push(move)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, best_move, verbose_minimax = False)
+            board.pop()
+            if eval > max_eval:
+                max_eval = eval
+                best_move = move
+            alpha = max(alpha, eval)
+            if alpha >= beta:
+                break
+
+        # Add the current game state and its evaluation to the transposition table
+        if max_eval <= alpha:
+            flag = "upper_bound"
+        elif max_eval >= beta:
+            flag = "lower_bound"
+        else:
+            flag = "exact"
+        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": max_eval, "ancient": len(transposition_table), "best_move": best_move}
+
+        return(max_eval, best_move)
+
+    else:
+        min_eval = np.inf
+        ordered_moves = order_moves(board, transposition_table, maximizing_player)
+        for move in ordered_moves:
+            board.push(move)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
+            board.pop()
+            if eval < min_eval:
+                min_eval = eval
+                best_move = move
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+
+        # Store the evaluation, best move, and flag in the transposition table
+        if min_eval <= alpha:
+            flag = "upper_bound"
+        elif min_eval >= beta:
+            flag = "lower_bound"
+        else:
+            flag = "exact"
+        transposition_table[board.fen()] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
+
+        return (min_eval, best_move)
+
+
+# def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
+#     max_move = None
+#     max_eval = -np.inf
+
+#     ordered_moves = order_moves(board)
+
+#     for valid_move in tqdm(ordered_moves):
+#         board.push(valid_move)
+#         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
+#         eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
+#         board.pop()
+#         if eval > max_eval:
+#             max_eval = eval
+#             max_move = valid_move
+
+#     return(max_move, max_eval)
 
 def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
-    max_move = None
-    max_eval = -np.inf
-
-    for valid_move in tqdm(list(board.legal_moves)):
-        board.push(valid_move)
-        # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-        eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
-        board.pop()
-        if eval > max_eval:
-            max_eval = eval
-            max_move = valid_move
+    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, best_move = None, verbose_minimax = verbose_minimax)
 
     return(max_move, max_eval)
 
@@ -1038,3 +1198,104 @@ def get_model_input_parameter(board):
     X_parameter = get_board_parameters(board.copy())
     X_parameter = X_parameter[:2] + X_parameter[6:]
     return(X_parameter)
+
+# def order_moves(board, transposition_table, maximizing_player):
+#     if maximizing_player:
+#         prefactor = -1
+#     else:
+#         prefactor = 1
+#     moves = list(board.legal_moves)
+#     moves_priority = []
+#     for move in moves:
+#         move_score = 0
+#         board_temp = board.copy()
+#         board_temp.push(move)
+#         hash_value = board_temp.fen()[:-4]
+        
+#         if hash_value in transposition_table:
+#             move_score = transposition_table[hash_value]["eval"]
+#             moves_priority.append(move_score)
+#         else:
+#             # if board.gives_check(move):
+#             #     move_score += 6 * prefactor
+#             # if board.is_capture(move):
+#             #     move_score += 5 * prefactor
+#             # if move.uci()[2] in ["d", "e"]:
+#             #     move_score += 4 * prefactor
+#             # if move.uci()[2] in ["c", "f"]:
+#             #     move_score += 3 * prefactor
+#             # if move.uci()[2] in ["b", "g"]:
+#             #     move_score += 2 * prefactor
+#             # if move.uci()[2] in ["a", "h"]:
+#             #     move_score += 1 * prefactor
+#             move_score = prefactor * np.inf
+#             moves_priority.append(move_score)
+#     moves_priority = zip(moves, moves_priority)
+#     if maximizing_player:
+#         moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = True)
+#     else:
+#         moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = False)
+
+#     moves_ordered = list(list(zip(*moves_priority))[0])
+
+#     return(moves_ordered)
+
+def order_moves(board, transposition_table, maximizing_player):
+    moves = list(board.legal_moves)
+    moves_priority = []
+    for move in moves:
+        move_score = 0
+        if board.gives_check(move):
+            move_score += 6
+        if board.is_capture(move):
+            move_score += 5
+        if move.uci()[2] in ["d", "e"]:
+            move_score += 4
+        if move.uci()[2] in ["c", "f"]:
+            move_score += 3
+        if move.uci()[2] in ["b", "g"]:
+            move_score += 2
+        if move.uci()[2] in ["a", "h"]:
+            move_score += 1
+        moves_priority.append(move_score)
+    moves_priority = zip(moves, moves_priority)
+    moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = True)
+    moves_ordered = list(list(zip(*moves_priority))[0])
+
+    return(moves_ordered)
+
+def display_chessboard_tkinter(board, root):
+    # get the SVG representation of the board
+    board_svg = chess.svg.board(board=board, flipped=True) #, flipped=True
+
+    # render the SVG image as a PNG image
+    png_data = cairosvg.svg2png(bytestring=board_svg)
+
+    # open the PNG image using PIL
+    image = Image.open(io.BytesIO(png_data))
+
+    # convert the image to a Tkinter-compatible format
+    tk_image = ImageTk.PhotoImage(image)
+
+    root.geometry('{}x{}'.format(image.width, image.height))
+    # create a Tkinter label with the image
+    label = tk.Label(root, image=tk_image)
+    label.place(x=0, y=0)
+
+    # run the Tkinter event loop
+    root.update()
+
+def display_chessboard(board, board_img=None):
+    board_svg = chess.svg.board(board=board, flipped=True)
+    png_bytes = cairosvg.svg2png(bytestring=board_svg.encode('utf-8'))
+    new_board_img = Image.open(io.BytesIO(png_bytes))
+    
+    if board_img is not None:
+        board_img.close()
+        if os.name == 'nt': # for Windows OS
+            os.system("taskkill /im Microsoft.Photos.exe /f")
+        else: # for macOS
+            os.system('osascript -e "tell application \\"Preview\\" to close every window"')
+    
+    new_board_img.show()
+    return new_board_img
