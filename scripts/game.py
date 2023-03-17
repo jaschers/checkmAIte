@@ -3,12 +3,9 @@ from keras import models
 import os
 from utilities import *
 import chess.svg
-from chessboard import display
 from datetime import datetime
 import readline # allows to use arrow keys while being asked for user input
 from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import animation
 import argparse
 import psutil
 
@@ -46,9 +43,12 @@ model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9
 # initialise game
 board = chess.Board()
 # board = chess.Board("1k5r/nppr1pbp/4pnp1/1P1p4/Q2P1B2/2P1P3/1P1NbPPP/R4RK1 w - - 3 16")
+# board = chess.Board("8/8/P7/6p1/3k1pP1/8/4K3/8 w - - 1 52") # endgame
 
 # initialsie transportation table
 transposition_table = {}
+# empty list for ai accuracy
+ai_accuracy = []
 
 # save chess board as svg
 if args.save == 1:
@@ -71,7 +71,7 @@ while True:
             # save game as gif
             boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
 
-            save_baord_gif(boards_png = boards_png, game_name = dt_string)
+            save_board_gif(boards_png = boards_png, game_name = dt_string)
 
         break
 
@@ -88,47 +88,46 @@ while True:
 
         # get best move ai
         # start_time = time.time()
-        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, transposition_table = transposition_table, verbose_minimax = True)
-        # print("best_move_ai, prediction_minimax", best_move_ai, prediction_minimax)
-        # print(transposition_table)
-        # end_time = time.time()
-        # print(end_time - start_time)
-        # get best move stockfish and ranking of all valid moves
-        best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(board.copy(), valid_moves, valid_moves_str, best_move_ai)
-
-        # push best stockfish move
-        board.push(best_move_stockfish)
-
-        # determine predicted ai score of stockfish move
-        prediction_score_stockfish_move = ai_board_score_pred(board.copy(), model)
-
-        # reset last move
-        board.pop()
-
-        # push best ai move
-        board.push(best_move_ai)
-        
-        # determine predicted ai score of ai move
-        prediction_score_ai_move = ai_board_score_pred(board.copy(), model)
-
-        # determine stockfish score of ai move
-        analyse_stockfish = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
-        stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
-
-        # reset last move
-        board.pop()
-
+        best_move_ai, eval = get_ai_move(board.copy(), model, depth = args.depth, transposition_table = transposition_table, verbose_minimax = True)
+    
         # print results
         if args.verbose == 1:
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(board.copy(), valid_moves, valid_moves_str, best_move_ai)
+
+            # push best stockfish move
+            board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(board.copy(), model)
+
+            # reset last move
+            board.pop()
+
+            # push best ai move
+            board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(board.copy(), model)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            # reset last move
+            board.pop()
+
+            ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            print("AI eval minimax / CNN:",  np.round(eval), "/", np.round(prediction_score_ai_move))
             print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
             print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move), "/", stockfish_score_ai_move)
             print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move), "/", stockfish_score_stockfish_move)
             print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
-            print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
+            print("SF accuracy of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(ai_accuracy[-1], 1)} %)")
+            print("AI's mean SF accuracy:", np.round(np.mean(ai_accuracy), 1), "%")
             print("Lentgh transposition table:", len(transposition_table))
             print("Board FEN:", board.fen())
             print("Memory usage:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1), "GB")
-
             
         else:
             print("AI move:", best_move_ai)
@@ -150,7 +149,7 @@ while True:
                 # save game as gif
                 boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
 
-                save_baord_gif(boards_png = boards_png, game_name = dt_string)
+                save_board_gif(boards_png = boards_png, game_name = dt_string)
 
             break
 
