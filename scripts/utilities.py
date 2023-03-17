@@ -544,7 +544,7 @@ def delete_board_png(game_name, counter):
     """
     os.system(f"rm games/{game_name}/board{counter}.png")
 
-def save_baord_gif(boards_png, game_name):
+def save_board_gif(boards_png, game_name):
     """Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
 
     Args:
@@ -603,7 +603,7 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
         board.pop()
 
     stockfish_moves_sorted_by_score = sorted(zip(valid_moves_str, stockfish_scores), reverse=True)
-    dtype = [("move", "U4"), ("score", int)]
+    dtype = [("move", "U8"), ("score", int)]
     stockfish_moves_sorted_by_score = np.array(stockfish_moves_sorted_by_score, dtype = dtype)
     stockfish_moves_sorted_by_score = np.sort(stockfish_moves_sorted_by_score, order = "score")[::-1]
     best_move_stockfish = chess.Move.from_uci(stockfish_moves_sorted_by_score[0][0])
