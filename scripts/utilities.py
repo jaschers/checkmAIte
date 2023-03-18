@@ -22,6 +22,7 @@ import cairosvg
 from PIL import Image, ImageTk
 import tkinter as tk
 import io
+import logging
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -595,8 +596,7 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     stockfish_scores = []
     for i in range(len(valid_moves)):
         board.push(valid_moves[i])
-
-        result = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
+        result = engine.analyse(board, chess.engine.Limit(depth = 0))
         stockfish_score = result["score"].white().score(mate_score = score_max)
         stockfish_scores.append(stockfish_score)
 
@@ -1299,3 +1299,28 @@ def display_chessboard(board, board_img=None):
     
     new_board_img.show()
     return new_board_img
+
+def setup_logging(dt_string):
+    # set up logger
+    # Create a logger object
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # Create a stream handler to print the log messages to the console
+    console_handler = logging.StreamHandler()
+
+    # Define the log message format
+    formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(formatter)
+
+    # Create a file handler to save the log messages to a file
+    if dt_string != None:
+        log_file = f"games/{dt_string}/logging.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    # Add the file handler and the stream handler to the logger
+    logger.addHandler(console_handler)
+    
+    return(logger)
