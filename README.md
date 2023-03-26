@@ -1,13 +1,13 @@
-# Chessai
+# CheckmAIte
 
-<img src="https://github.com/jaschers/chessai/blob/main/visuals/logo.png" width="200">
+<img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/logo.png" width="200">
 
-This is a chess engine built using a convolutional neural network as the evaluation function and a minimax algorithm to find the best move. It uses the popular Stockfish engine as the opponent.
+CheckmAIte is a chess engine using a convolutional neural network as the evaluation function and a minimax algorithm to find the best move. 
 
 ## Demo
-<img src="https://github.com/jaschers/chessai/blob/main/visuals/board.gif" width="500">
+<img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/board.gif" width="500">
 
-Here's a demo of the chess engine playing against a 1300 elo chess bot.
+Here's a demo of the CheckmAIte (white) playing against a 1300 elo chess bot (black).
 
 ## Requirements
 * Python 3.7+
