@@ -399,6 +399,7 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
     
 
 def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+    # print("alpha", alpha, "beta", beta)
     if depth < 0 or type(depth) != int:
         raise ValueError("Depth needs to be int and greater than 0")
 
@@ -422,13 +423,15 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
 
     if depth == 0 or board.is_game_over():
         prediction = ai_board_score_pred(board.copy(), model)
+        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
+        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
         return(prediction, None)
 
     if maximizing_player:
         max_eval = -np.inf
-        ordered_moves = order_moves(board, transposition_table, maximizing_player)
+        ordered_moves = order_moves(board, transposition_table)
         if verbose_minimax == True:
             ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
@@ -439,7 +442,8 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 max_eval = eval
                 best_move = move
             alpha = max(alpha, eval)
-            if alpha >= beta:
+            if beta <= alpha:
+                ("alpha-beta pruning")
                 break
 
         # Add the current game state and its evaluation to the transposition table
@@ -454,8 +458,21 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return(max_eval, best_move)
 
     else:
+        # # Null move pruning
+        # if depth >= 2:
+        #     null_move = chess.Move.null()
+        #     board.push(null_move)
+        #     eval, _ = minimax(board.copy(), model, depth - 3, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
+        #     board.pop()
+        #     print("Null move pruning attempt")
+        #     print("beta", beta, "eval", eval)
+
+        #     if eval >= beta:
+        #         print("Null move pruning")
+        #         return beta
+        
         min_eval = np.inf
-        ordered_moves = order_moves(board, transposition_table, maximizing_player)
+        ordered_moves = order_moves(board, transposition_table)
         for move in ordered_moves:
             board.push(move)
             eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
@@ -465,6 +482,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 best_move = move
             beta = min(beta, eval)
             if beta <= alpha:
+                ("alpha-beta pruning")
                 break
 
         # Store the evaluation, best move, and flag in the transposition table
@@ -474,7 +492,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             flag = "lower_bound"
         else:
             flag = "exact"
-        transposition_table[board.fen()] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
+        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
 
         return (min_eval, best_move)
 
@@ -1199,70 +1217,6 @@ def get_model_input_parameter(board):
     X_parameter = X_parameter[:2] + X_parameter[6:]
     return(X_parameter)
 
-# def order_moves(board, transposition_table, maximizing_player):
-#     if maximizing_player:
-#         prefactor = -1
-#     else:
-#         prefactor = 1
-#     moves = list(board.legal_moves)
-#     moves_priority = []
-#     for move in moves:
-#         move_score = 0
-#         board_temp = board.copy()
-#         board_temp.push(move)
-#         hash_value = board_temp.fen()[:-4]
-        
-#         if hash_value in transposition_table:
-#             move_score = transposition_table[hash_value]["eval"]
-#             moves_priority.append(move_score)
-#         else:
-#             # if board.gives_check(move):
-#             #     move_score += 6 * prefactor
-#             # if board.is_capture(move):
-#             #     move_score += 5 * prefactor
-#             # if move.uci()[2] in ["d", "e"]:
-#             #     move_score += 4 * prefactor
-#             # if move.uci()[2] in ["c", "f"]:
-#             #     move_score += 3 * prefactor
-#             # if move.uci()[2] in ["b", "g"]:
-#             #     move_score += 2 * prefactor
-#             # if move.uci()[2] in ["a", "h"]:
-#             #     move_score += 1 * prefactor
-#             move_score = prefactor * np.inf
-#             moves_priority.append(move_score)
-#     moves_priority = zip(moves, moves_priority)
-#     if maximizing_player:
-#         moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = True)
-#     else:
-#         moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = False)
-
-#     moves_ordered = list(list(zip(*moves_priority))[0])
-
-#     return(moves_ordered)
-
-def order_moves(board, transposition_table, maximizing_player):
-    moves = list(board.legal_moves)
-    moves_priority = []
-    for move in moves:
-        move_score = 0
-        if board.gives_check(move):
-            move_score += 6
-        if board.is_capture(move):
-            move_score += 5
-        if move.uci()[2] in ["d", "e"]:
-            move_score += 4
-        if move.uci()[2] in ["c", "f"]:
-            move_score += 3
-        if move.uci()[2] in ["b", "g"]:
-            move_score += 2
-        if move.uci()[2] in ["a", "h"]:
-            move_score += 1
-        moves_priority.append(move_score)
-    moves_priority = zip(moves, moves_priority)
-    moves_priority = sorted(moves_priority, key = lambda x:x[1], reverse = True)
-    moves_ordered = list(list(zip(*moves_priority))[0])
-
-    return(moves_ordered)
 
 def display_chessboard_tkinter(board, root):
     # get the SVG representation of the board
@@ -1324,3 +1278,74 @@ def setup_logging(dt_string):
     logger.addHandler(console_handler)
     
     return(logger)
+
+def order_moves(board, transposition_table):
+    """
+    Apply move ordering heuristic to the legal moves of a given chess board.
+
+    Parameters:
+    board (chess.Board): the chess board to order the moves for.
+
+    Returns:
+    A list of legal moves for the given board, ordered according to the transposition table, check, MVV-LVA heuristic and piece positions.
+    """
+    moves = list(board.legal_moves)
+
+    data = []
+    # Sort the moves by the value of the captured piece minus the value of the capturing piece
+    for move in moves:
+        board_temp = board.copy()
+        board_temp.push(move)
+        hash_value = board_temp.fen()[:-4]
+        
+        if hash_value in transposition_table:
+            score = transposition_table[hash_value]["eval"]
+            data.append([move, True, False, False, False, score])
+
+        elif board.gives_check(move):
+            data.append([move, False, True, False, False, 1])
+
+        elif board.is_capture(move):
+            if board.is_en_passant(move):
+                data.append([move, False, False, True, False, 0])
+            else:
+                score = capture_score(board, move)
+                data.append([move, False, False, True, False, score])
+
+        else:
+            score = position_score(board, move)
+            data.append([move, False, False, False, True, score])
+
+    table = pd.DataFrame(data = data, columns = ["move", "TT", "check", "capture", "position", "score"])
+    table = table.sort_values(by = ["TT", "check", "capture", "position", "score"], ascending = False)
+    moves = table["move"].to_numpy()
+    return(moves)
+
+# Define a function to get the value of a piece based on its type
+def piece_value(piece):
+    # Define the value of each chess piece for the MVV-LVA heuristic
+    piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
+    return(piece_values.get(piece.piece_type, 0))
+
+def capture_score(board, move):
+    captured_piece_value = piece_value(board.piece_at(move.to_square))
+    attacking_piece_value = piece_value(board.piece_at(move.from_square))
+    capture_score = captured_piece_value - attacking_piece_value
+    return(capture_score)
+
+def position_score(board, move):
+    position_score = 0
+    if board.gives_check(move):
+        position_score += 6
+    if board.is_capture(move):
+        position_score += 5
+    if move.uci()[2] in ["d", "e"]:
+        position_score += 4
+    if move.uci()[2] in ["c", "f"]:
+        position_score += 3
+    if move.uci()[2] in ["b", "g"]:
+        position_score += 2
+    if move.uci()[2] in ["a", "h"]:
+        position_score += 1
+
+    return(position_score)
