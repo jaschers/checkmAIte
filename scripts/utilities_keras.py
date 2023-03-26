@@ -49,15 +49,26 @@ def load_data(num_runs, name_data, score_cut):
         end = time.time()
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
+    table = table.reset_index(drop = True)
+    print("Number of events including duplicates:", len(table))
+    table = table.loc[table.astype(str).drop_duplicates().index]
+    table = table.reset_index(drop = True)
+    print("Number of events without duplicates:", len(table))
+
     if score_cut != None:
-        table = table.reset_index(drop = True)
-        table = table.drop(table[abs(table.score) > score_cut].index)
-        table = table.reset_index(drop = True)
+        if len(score_cut) == 1:
+            table = table.drop(table[abs(table.score) >= score_cut[0]].index)
+        else:
+            table = table.reset_index(drop = True)
+            mask = (abs(table.score) >= score_cut[0]) & (abs(table.score) <= score_cut[1])
+            mask = ~mask
+            table = table[mask]
+            table = table.reset_index(drop = True)
     print(table)
 
-    X_board3d = table["board3d"].values.tolist()
-    X_parameter = table[["player move", "halfmove clock"]].values.tolist()
-    Y = table["score"].values.tolist()
+    X_board3d = np.array(table["board3d"].values.tolist())
+    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist())
+    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist())
 
     return(X_board3d, X_parameter, Y)
 
@@ -79,9 +90,9 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
 
     table_baord = pd.DataFrame({"board (FEN)": X_board_extreme})
     table_baord3d = pd.DataFrame({"board3d": list(X_board3d_extreme)})
-    table_pred_val = pd.DataFrame({"prediction": prediction_val[indices]})
-    table_true_val = pd.DataFrame({"true score": true_score_val[indices]})
-    table_difference = pd.DataFrame({"difference": difference_extreme})
+    table_pred_val = pd.DataFrame({"predicted score": prediction_val[indices]}).reset_index(drop = True)
+    table_true_val = pd.DataFrame({"true score": true_score_val[indices]}).reset_index(drop = True)
+    table_difference = pd.DataFrame({"difference": difference_extreme}).reset_index(drop = True)
     table_turn = pd.DataFrame({"turn": X_parameter_extreme[:, 0]})
 
     table = pd.concat([table_baord, table_baord3d, table_pred_val, table_true_val, table_difference, table_turn], axis = 1)

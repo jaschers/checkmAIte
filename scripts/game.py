@@ -1,20 +1,20 @@
-import chess
-from keras import models
-import os
-from utilities import *
+import tkinter as tk
 import chess.svg
-from chessboard import display
-from datetime import datetime
-import readline # allows to use arrow keys while being asked for user input
-from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import animation
+import io
+import cairosvg
+import chess.engine
+from PIL import Image, ImageTk
+import os
+import time
 import argparse
-# import time
+from utilities import *
+from datetime import datetime
+import psutil
+
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
-engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+score_max = 15000
 
 # avoid printing tensorflow warnings
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
@@ -30,125 +30,238 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
-parser.add_argument("-v", "--verbose", type = bool, required = True, metavar = "-", help = "Verbose True or False")
+parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
+parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
 
-# get current date and time
-dt_string = datetime.now().strftime("%b-%d-%Y_%H.%M.%S")
+class ChessApp:
+    def __init__(self, master):
+        self.master = master
+        master.title("Chess")
 
-# load neural network model
-model = models.load_model("model/model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1.h5") # model_24_8_8_depth0_mm100_ms10000_resnet128
+        # Create canvas for displaying chess board
+        self.width, self.height = 390, 390
+        self.width_border, self.height_border = 14, 14# self.width / (80/3), self.height / (80/3)
+        self.true_width, self.true_height = self.width - (2 * self.width_border), self.height - (2 * self.height_border)
+        self.canvas = tk.Canvas(master, width = self.width, height = self.height)
+        self.canvas.pack()
 
-# initialise game
-board = chess.Board()
+        # Initialize chess engine
+        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
-# save chess board as svg
-os.makedirs(f"games/{dt_string}", exist_ok = True)
-save_board_png(board = board.copy(), game_name = dt_string, counter = 1)
+        # Draw initial chess board
+        self.board = chess.Board()
+        # self.board = chess.Board("rn2k2r/pp3ppp/1qpbpn2/1B1pN3/3P2b1/2P1P2P/PP3PP1/RNBQK2R w KQkq - 3 8")
+        # Create button to undo move
+        self.button = tk.Button(master, text="Undo move", command=self.undo_move)
+        self.button.pack()
+        self.draw_board()
 
-# display chess board
-display.start(board.fen())
-print("________________")
+        self.model = models.load_model("model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5") # model_24_8_8_depth0_mm100_ms10000_s9900_resnet128_lossmsle_exp1
 
-user_input = None
+        # initialsie transportation table
+        self.transposition_table = {}
 
-board_counter = 2
-while True:
-    # check if game is over
-    if board.is_game_over():
-        print("Game over!")
-        print(board.outcome())
+        # empty list for ai accuracy
+        self.ai_accuracy = []
 
-        # save game as gif
-        boards_png = [Image.open(f"games/{dt_string}/board{i}.png", mode='r') for i in range(1, board_counter)]
+        self.setup_save()
 
-        save_baord_gif(boards_png = boards_png, game_name = dt_string)
+        self.ai_move()
 
-        break
+        # Bind mouse events to canvas
+        self.canvas.bind("<Button-1>", self.on_click)
+        self.canvas.bind("<ButtonRelease-1>", self.on_release)
+        self.selected_square = None
+        self.selected_piece = None
 
-    if user_input == "undo":
-        # user move
-        valid_moves, valid_moves_str = get_valid_moves(board.copy())
-        valid_moves_str.append("undo")
-        print("Valid moves for user:\n", valid_moves_str)
-        user_input = input("Enter your move: ")
 
-    else:
+    def draw_board(self):
+        # Create SVG image of chess board using chess.svg.board module
+        # svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
+        svg_board = chess.svg.board(self.board).encode("utf-8")
+
+        # Convert SVG to PNG image using cairosvg library
+        png_data = cairosvg.svg2png(bytestring=svg_board)
+
+        # Display PNG image on canvas using PIL and Tkinter
+        self.canvas.delete("all")
+        image = Image.open(io.BytesIO(png_data))
+        tk_image = ImageTk.PhotoImage(image)
+        self.canvas.create_image(0, 0, image=tk_image, anchor="nw")
+        self.canvas.tk_image = tk_image
+
+        self.master.update()
+
+    def on_click(self, event):
+        # Get the square that was clicked on
+        # consider 15x15 border of the board
+        col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
+        row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
+        square = chess.square(col, 7 - row) # if board is flipped
+        # square = chess.square(7 - col, row)
+
+        # Get the piece that is on the clicked square
+        piece = self.board.piece_at(square)
+
+        # If there is a piece on the clicked square, select it
+        if piece is not None:
+            self.selected_square = square
+            self.selected_piece = piece
+
+    def on_release(self, event):
+        # If a piece is selected, attempt to move it to the released square
+        if self.selected_piece is not None:
+            # Get the square that was released on
+            col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
+            row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
+            self.release_square = chess.square(col, 7 - row) # if board is flipped
+            # self.release_square = chess.square(7 - col, row)
+
+            # Attempt to make the move
+            self.move = chess.Move(self.selected_square, self.release_square)
+
+
+            if self.move in self.board.legal_moves:
+                self.board.push(self.move)
+                self.draw_board()
+                self.check_game_over()
+
+                if args.save == 1:
+                    save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+                    self.board_counter += 1
+
+                self.ai_move()
+            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55):
+                print(self.selected_square, self.release_square)
+                self.text = tk.Text(self.master, height = 1, width = 2)
+                self.text.pack()
+                self.button = tk.Button(self.master, text="Enter promotion piece (q/r/k/b)", command=self.promotion)
+                self.button.pack()
+            else:
+                self.logger.info("Illegal move! Valid moves: \n %s", get_valid_moves(self.board)[1])
+
+            self.selected_square = None
+            self.selected_piece = None
+    
+    def undo_move(self):
+        if self.board.fullmove_number < 2:
+            self.logger.info("A move has to be played first")
+        else:
+            self.board.pop()
+            self.board.pop()
+            self.draw_board()
+            if args.save == 1:
+                delete_board_png(self.dt_string, self.board_counter - 1)
+                delete_board_png(self.dt_string, self.board_counter - 2)
+                self.board_counter -= 2
+
+    def promotion(self):
+        inp = self.text.get(1.0, "end-1c")
+        if inp in ["q", "r", "k", "b"]:
+            move_uci = self.move.uci()
+            move_uci += inp
+            self.move = chess.Move.from_uci(move_uci)
+            self.board.push(self.move)
+            self.draw_board()
+            self.button.pack_forget()
+            self.text.pack_forget()
+            self.ai_move()
+        else:
+            self.logger.info("Invalid piece type")
+
+    def ai_move(self):
         # get all valid moves
-        valid_moves, valid_moves_str = get_valid_moves(board.copy())
-
-        # get best move ai
-        # start_time = time.time()
-        best_move_ai, prediction_minimax = get_ai_move(board.copy(), model, depth = args.depth, verbose_minimax = False)
-        # end_time = time.time()
-        # print(end_time - start_time)
-        # get best move stockfish and ranking of all valid moves
-        best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(board.copy(), valid_moves, valid_moves_str, best_move_ai)
-
-        # push best stockfish move
-        board.push(best_move_stockfish)
-
-        # determine predicted ai score of stockfish move
-        prediction_score_stockfish_move = ai_board_score_pred(board.copy(), model)
-
-        # reset last move
-        board.pop()
-
-        # push best ai move
-        board.push(best_move_ai)
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        best_move_ai, _ = get_ai_move(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table, verbose_minimax = True)
+        self.board.push(best_move_ai)
         
-        # determine predicted ai score of ai move
-        prediction_score_ai_move = ai_board_score_pred(board.copy(), model)
-
-        # determine stockfish score of ai move
-        analyse_stockfish = engine.analyse(board.copy(), chess.engine.Limit(depth = 0))
-        stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = 10000)
-
-        # reset last move
-        board.pop()
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
 
         # print results
-        print("AI / SF best move:", best_move_ai, "/", best_move_stockfish)
-        print("AI / SF pred. score (ai move):", np.round(prediction_score_ai_move * 14863 - 7645), "/", stockfish_score_ai_move)
-        print("AI / SF pred. score (sf move):", np.round(prediction_score_stockfish_move * 14863 - 7645), "/", stockfish_score_stockfish_move)
-        print("SF top 3 moves:", stockfish_moves_sorted_by_score[:3])
-        print("SF ranking of AI's best move:", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round((index + 1) / len(stockfish_moves_sorted_by_score) * 100, 1)} %)")
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai)
 
-        print("________________")
-        board.push(best_move_ai)
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
 
-        save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model)
 
-        board_counter += 1
+            # reset last move
+            self.board.pop()
 
-        display.start(board.fen())
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model)
 
-        # user move
-        valid_moves, valid_moves_str = get_valid_moves(board.copy())
-        valid_moves_str.append("undo")
-        print("Valid moves for user:\n", valid_moves_str)
-        user_input = input("Enter your move: ")
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
 
-    while not (user_input in valid_moves_str):
-        print("Invalid move!")
-        print("Valid moves for user:\n", valid_moves_str)
-        user_input = input("Enter your move: ")
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
 
-    if user_input == "undo":
-        board.pop()
-        board.pop()
-    else:
-        user_move = chess.Move.from_uci(user_input)
-        board.push(user_move)
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
 
-    print("________________")
+        self.draw_board()
 
-    save_board_png(board = board.copy(), game_name = dt_string, counter = board_counter)
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+    
+    def setup_save(self):
+        if args.save == 0:
+            # setup logger
+            self.logger = setup_logging(None)
+        else:
+            # get current date and time
+            self.dt_string = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
 
-    board_counter += 1
+            # save chess board as svg
+            os.makedirs(f"games/{self.dt_string}", exist_ok = True)
+            # setup logger
+            self.logger = setup_logging(self.dt_string)
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = 1)
+            self.board_counter = 2
 
-    display.start(board.fen())
+    def check_game_over(self):
+        # check if game is over
+        if self.board.is_game_over():
+            self.logger.info("Game over!")
+            self.logger.info("%s", self.board.outcome())
 
+            if args.save == 1:
+                # save game as gif
+                boards_png = [Image.open(f"games/{self.dt_string}/board{i}.png", mode='r') for i in range(1, self.board_counter)]
 
+                save_board_gif(boards_png = boards_png, game_name = self.dt_string)
+
+            exit()
+
+def main():
+    # Create GUI and start event loop
+    root = tk.Tk()
+    app = ChessApp(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
