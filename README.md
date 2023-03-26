@@ -1,8 +1,14 @@
 # Chessai
 
-<img src="https://github.com/jaschers/chessai/blob/main/visuals/logo.png" width="500">
+<img src="https://github.com/jaschers/chessai/blob/main/visuals/logo.png" width="200">
 
 This is a chess engine built using a convolutional neural network as the evaluation function and a minimax algorithm to find the best move. It uses the popular Stockfish engine as the opponent.
+
+## Demo
+<img src="https://github.com/jaschers/chessai/blob/main/visuals/board.gif" width="500">
+
+Here's a demo of the chess engine playing against a 1300 elo chess bot.
+
 ## Requirements
 * Python 3.7+
 * Stockfish engine
@@ -26,9 +32,3 @@ To play a game against the chess engine, run the following command:
 ```python scripts/game.py -s 0 -v 0 -d 2```
 
 The s option stands for save, v for verbose and d for depth. You can change these options as per your requirement.
-
-## Demo
-
-<img src="https://github.com/jaschers/daily-paper/blob/main/logo/logo.png" width="500">
-
-Here's a demo of the chess engine playing against another player.
