@@ -1,4 +1,4 @@
-# Chessai
+# checkmAIte
 
 <img src="https://github.com/jaschers/chessai/blob/main/visuals/logo.png" width="200">
 
