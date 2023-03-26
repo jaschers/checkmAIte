@@ -12,6 +12,8 @@ model/
 prediction/
 literature/
 digital_secrets/
+visuals/development
 
 .DS_Store
 .git/
+.gitignore
