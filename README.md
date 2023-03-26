@@ -2,7 +2,7 @@
 
 <img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/logo.png" width="250">
 
-CheckmAIte is a chess engine using a convolutional neural network as the evaluation function and a minimax algorithm to find the best move. 
+CheckmAIte is a chess engine based on a convolutional neural network.
 
 ## Demo
 <img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/board.gif" width="500">
