@@ -53,6 +53,7 @@ class ChessApp:
 
         # Draw initial chess board
         self.board = chess.Board()
+        # self.board = chess.Board("rn2k2r/pp3ppp/1qpbpn2/1B1pN3/3P2b1/2P1P2P/PP3PP1/RNBQK2R w KQkq - 3 8")
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
@@ -79,7 +80,8 @@ class ChessApp:
 
     def draw_board(self):
         # Create SVG image of chess board using chess.svg.board module
-        svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
+        # svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
+        svg_board = chess.svg.board(self.board).encode("utf-8")
 
         # Convert SVG to PNG image using cairosvg library
         png_data = cairosvg.svg2png(bytestring=svg_board)
@@ -98,8 +100,8 @@ class ChessApp:
         # consider 15x15 border of the board
         col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
         row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-        # square = chess.square(col, 7 - row) # if board is flipped
-        square = chess.square(7 - col, row)
+        square = chess.square(col, 7 - row) # if board is flipped
+        # square = chess.square(7 - col, row)
 
         # Get the piece that is on the clicked square
         piece = self.board.piece_at(square)
@@ -115,24 +117,29 @@ class ChessApp:
             # Get the square that was released on
             col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
             row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-            # square = chess.square(col, 7 - row) # if board is flipped
-            release_square = chess.square(7 - col, row)
+            self.release_square = chess.square(col, 7 - row) # if board is flipped
+            # self.release_square = chess.square(7 - col, row)
 
             # Attempt to make the move
-            move = chess.Move(self.selected_square, release_square)
+            self.move = chess.Move(self.selected_square, self.release_square)
 
-            self.check_game_over()
 
-            if move in self.board.legal_moves:
-                self.board.push(move)
+            if self.move in self.board.legal_moves:
+                self.board.push(self.move)
                 self.draw_board()
+                self.check_game_over()
 
                 if args.save == 1:
                     save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
                     self.board_counter += 1
 
                 self.ai_move()
-
+            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55):
+                print(self.selected_square, self.release_square)
+                self.text = tk.Text(self.master, height = 1, width = 2)
+                self.text.pack()
+                self.button = tk.Button(self.master, text="Enter promotion piece (q/r/k/b)", command=self.promotion)
+                self.button.pack()
             else:
                 self.logger.info("Illegal move! Valid moves: \n %s", get_valid_moves(self.board)[1])
 
@@ -151,8 +158,23 @@ class ChessApp:
                 delete_board_png(self.dt_string, self.board_counter - 2)
                 self.board_counter -= 2
 
+    def promotion(self):
+        inp = self.text.get(1.0, "end-1c")
+        if inp in ["q", "r", "k", "b"]:
+            move_uci = self.move.uci()
+            move_uci += inp
+            self.move = chess.Move.from_uci(move_uci)
+            self.board.push(self.move)
+            self.draw_board()
+            self.button.pack_forget()
+            self.text.pack_forget()
+            self.ai_move()
+        else:
+            self.logger.info("Invalid piece type")
+
     def ai_move(self):
         # get all valid moves
+        board_fen_previous = self.board.fen()
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
         best_move_ai, _ = get_ai_move(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table, verbose_minimax = True)
         self.board.push(best_move_ai)
@@ -194,6 +216,7 @@ class ChessApp:
             self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
             self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
             self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
             self.logger.info("Board FEN: %s", self.board.fen())
             self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
             
