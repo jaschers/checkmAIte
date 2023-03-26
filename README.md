@@ -1,6 +1,6 @@
 # Chessai
 
-<img src="https://github.com/jaschers/daily-paper/blob/main/logo/logo.png" width="500">
+<img src="https://github.com/jaschers/chessai/blob/main/visuals/logo.png" width="500">
 
 This is a chess engine built using a convolutional neural network as the evaluation function and a minimax algorithm to find the best move. It uses the popular Stockfish engine as the opponent.
 ## Requirements
