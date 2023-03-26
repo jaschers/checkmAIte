@@ -7,7 +7,7 @@ data/
 evaluation/
 games/
 history/
-logo/
+visuals/development/
 model/
 prediction/
 literature/
@@ -16,3 +16,4 @@ digital_secrets/
 .DS_Store
 .git/
 data.csv
+.gitignore
