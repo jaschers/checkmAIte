@@ -194,7 +194,7 @@ def boards_random(num_boards):
     """Creates random boards by playing games with random moves
 
     Args:
-        num_boards (int): number of baords being created
+        num_boards (int): number of boards being created
 
     Returns:
         list: (N,) list including all the randomly generated boards N while playing the games
@@ -578,7 +578,7 @@ def save_board_gif(boards_png, game_name):
         im = ax.imshow(board_png)
         ims.append([im])
     ani = animation.ArtistAnimation(fig, ims, interval = 1000)
-    ani.save(f"games/{game_name}/baord.gif")
+    ani.save(f"games/{game_name}/board.gif")
 
     os.system(f"rm games/{game_name}/*.png")
 
