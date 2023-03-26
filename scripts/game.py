@@ -79,7 +79,8 @@ class ChessApp:
 
 
     def draw_board(self):
-        """Draw the chess board on the canvas
+        """
+        Draw the chess board on the canvas
 
         Args:
             self (ChessApp): An instance of ChessApp.
@@ -101,7 +102,8 @@ class ChessApp:
         self.master.update()
 
     def on_click(self, event):
-        """Handle mouse click event
+        """
+        Handle mouse click event
         Args: 
             self (ChessApp): An instance of ChessApp.
         """
@@ -121,7 +123,8 @@ class ChessApp:
             self.selected_piece = piece
 
     def on_release(self, event):
-        """Handle mouse release event
+        """
+        Handle mouse release event
         Args: 
             self (ChessApp): An instance of ChessApp.
         """
@@ -160,7 +163,8 @@ class ChessApp:
             self.selected_piece = None
     
     def undo_move(self):
-        """Undo the last move
+        """
+        Undo the last move
         Args: 
             self (ChessApp): An instance of ChessApp.
         """
@@ -176,7 +180,8 @@ class ChessApp:
                 self.board_counter -= 2
 
     def promotion(self):
-        """Promote pawn to queen, rook, knight or bishop
+        """
+        Promote pawn to queen, rook, knight or bishop
         Args:
             self (ChessApp): An instance of ChessApp.
         """
@@ -194,7 +199,8 @@ class ChessApp:
             self.logger.info("Invalid piece type")
 
     def ai_move(self):
-        """Make AI move
+        """
+        Make AI move
         Args:
             self (ChessApp): An instance of ChessApp.
         """
@@ -254,7 +260,8 @@ class ChessApp:
         self.check_game_over()
     
     def setup_save(self):
-        """Setup saving of game
+        """
+        Setup saving of game
         Args: 
             self (ChessApp): An instance of ChessApp.
         """
@@ -273,7 +280,8 @@ class ChessApp:
             self.board_counter = 2
 
     def check_game_over(self):
-        """Check if game is over
+        """
+        Check if game is over
         Args:
             self (ChessApp): An instance of ChessApp.
         """

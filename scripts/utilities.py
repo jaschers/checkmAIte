@@ -37,7 +37,8 @@ counter = 0
 score_max = 15000
 
 def square_to_index(square):
-    """converts square number to 2D index
+    """
+    converts square number to 2D index
     Args:
         square (int): square number
     Returns:
@@ -59,7 +60,8 @@ def square_to_index(square):
         return(indices) 
 
 def board_int(board):
-    """converts chess board into 2D list with
+    """
+    converts chess board into 2D list with
     1: pawn
     2: knight
     3: bishop
@@ -97,7 +99,8 @@ def board_int(board):
     return(board_arr)
 
 def board_3d_attack_int(board):
-    """converts chess board into 3D (24, 8, 8) array with board[i] representing:
+    """
+    converts chess board into 3D (24, 8, 8) array with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -178,7 +181,8 @@ def board_3d_attack_int(board):
     return(board_arr)
 
 def board_score(board, depth = 0):
-    """Evaluates the score of a board for player white based on stockfish.
+    """
+    Evaluates the score of a board for player white based on stockfish.
 
     Args:
         board (chess.Board): chess board in FEN format
@@ -197,7 +201,8 @@ def board_score(board, depth = 0):
     return(score)
 
 def boards_random(num_boards):
-    """Creates random boards by playing games with random moves
+    """
+    Creates random boards by playing games with random moves
 
     Args:
         num_boards (int): number of boards being created
@@ -228,7 +233,8 @@ def boards_random(num_boards):
     return(boards_random_int, boards_random_parameter, boards_random_score)
 
 def ai_board_score_pred(board, model):
-    """Predicts the score of a board on the CNN model.
+    """
+    Predicts the score of a board on the CNN model.
     Args:
         board (chess.Board): chess board
         model (keras.model): CNN model
@@ -295,7 +301,8 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
 
 
 def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
-    """Minimax algorithm with alpha-beta pruning, transposition table and move ordering
+    """
+    Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
         board (chess.Board): chess board
         model (keras.model): CNN model
@@ -409,7 +416,8 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
 
 
 def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
-    """Get the best move for the AI
+    """
+    Get the best move for the AI
     Args:
         board (chess.Board): chess board
         model (keras.Model): neural network model
@@ -445,7 +453,8 @@ def get_ai_move_parallel(board, model, depth, transposition_table, verbose_minim
     return(max_move, max_eval)
 
 def save_board_png(board, game_name, counter):
-    """Saves the current board as png in games/{game_name}/board{counter}.png
+    """
+    Saves the current board as png in games/{game_name}/board{counter}.png
 
     Args:
         board (chess.Board): chess board
@@ -460,7 +469,8 @@ def save_board_png(board, game_name, counter):
     os.system(f"rm games/{game_name}/board{counter}.svg")
 
 def delete_board_png(game_name, counter):
-    """deletes the board saved as games/{game_name}/board{counter}.png
+    """
+    deletes the board saved as games/{game_name}/board{counter}.png
 
     Args:
         game_name (str): name of the current chess game
@@ -469,7 +479,8 @@ def delete_board_png(game_name, counter):
     os.system(f"rm games/{game_name}/board{counter}.png")
 
 def save_board_gif(boards_png, game_name):
-    """Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
+    """
+    Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
 
     Args:
         boards_png (list): list of PIL.PngImagePlugin.PngImageFile images
@@ -488,7 +499,8 @@ def save_board_gif(boards_png, game_name):
     os.system(f"rm games/{game_name}/*.png")
 
 def get_valid_moves(board):
-    """returns the valid moves of a board
+    """
+    returns the valid moves of a board
 
     Args:
         board (chess.Board): chess board
@@ -502,7 +514,8 @@ def get_valid_moves(board):
     return(valid_moves, valid_moves_str)
 
 def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
-    """Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
+    """
+    Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
 
     Args:
         board (chess.Board): chess board
@@ -537,7 +550,8 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     return(best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index)
 
 def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en_passant, halfmove_clock, fullmove_number):
-    """Converts a n-dimensional list of the chess board back to its FEN format
+    """
+    Converts a n-dimensional list of the chess board back to its FEN format
 
     Args:
         board_int (np.array): (n, 8, 8) list of the input board with {1,0} int values
@@ -598,7 +612,8 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     return(board_fen)
 
 def plot_history(history, name):
-    """Plot training and validation loss
+    """
+    Plot training and validation loss
     Args:
         history (dict): history of the training
         name (str): name of the model
@@ -615,7 +630,8 @@ def plot_history(history, name):
     plt.close()
 
 def plot_2d_scattering(prediction_val, true_score_val, name):
-    """Plot 2D scattering of the true and predicted scores
+    """
+    Plot 2D scattering of the true and predicted scores
     Args:
         prediction_val (np.array): (n,) array of the predicted scores
         true_score_val (np.array): (n,) array of the true scores
@@ -642,7 +658,8 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     plt.close()
 
 def plot_hist_difference_total(prediction, true, parameter, name):
-    """Plot histogram of the difference between the true and predicted scores
+    """
+    Plot histogram of the difference between the true and predicted scores
     Args:
         prediction (np.array): (n,) array of the predicted scores
         true (np.array): (n,) array of the true scores 
@@ -668,7 +685,8 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     plt.close()
 
 def plot_hist_difference_binned(prediction_val, true_score_val, name):
-    """Plot histogram of the difference between the true and predicted scores binned
+    """
+    Plot histogram of the difference between the true and predicted scores binned
     Args:
         prediction_val (np.array): (n,) array of the predicted scores
         true_score_val (np.array): (n,) array of the true scores
@@ -703,7 +721,8 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
     plt.close()
 
 def save_examples(table, name):
-    """Save examples of the boards
+    """
+    Save examples of the boards
     Args:
         table (pd.DataFrame): table with the boards and the scores
         name (str): name of the model
@@ -770,7 +789,8 @@ def save_examples(table, name):
         print(f"Board {i} saved...")
 
 def path_uniquify(path):
-    """Add a number to the end of the path if the path already exists
+    """
+    Add a number to the end of the path if the path already exists
     Args:
         path (str): path to the file
     Returns:
@@ -786,7 +806,8 @@ def path_uniquify(path):
     return(path)
 
 def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
-    """Make a heatmap of the gradient of the output neuron
+    """
+    Make a heatmap of the gradient of the output neuron
     Args:
         img (np.array): input image
         model (keras.model): model
@@ -830,7 +851,8 @@ def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
     return(heatmap.numpy())
 
 def get_board_parameters(board):
-    """Returns board parameters from a given board.
+    """
+    Returns board parameters from a given board.
 
     Args:
         board (chess.Board): chess board
@@ -886,7 +908,8 @@ def get_board_parameters(board):
         )
 
 def get_board_pinned(board):
-    """Returns board of pinned black and white pieces
+    """
+    Returns board of pinned black and white pieces
 
     Args:
         board (chess.Board): chess board
@@ -904,7 +927,8 @@ def get_board_pinned(board):
     return(board_pinned)
 
 def get_board_en_passant(board):
-    """Returns board of possible en passant move
+    """
+    Returns board of possible en passant move
 
     Args:
         board (chess.Board): chess board
@@ -921,7 +945,8 @@ def get_board_en_passant(board):
     return(board_en_passant)
 
 def get_board_3d_pieces(board):
-    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (12, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -964,7 +989,8 @@ def get_board_3d_pieces(board):
     return(board_pieces)
 
 def get_board_3d_attacks(board):
-    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (12, 8, 8) list with board[i] representing:
     0: all squares being attacked/defended by white pawn
     1: all squares being attacked/defended by white knight
     2: all squares being attacked/defended by white bishop
@@ -1020,7 +1046,8 @@ def get_board_3d_attacks(board):
     return(board_attacks)
 
 def get_board_3d_2nd_attacks(board):
-    """converts chess board into 3D (6, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (6, 8, 8) list with board[i] representing:
     0: all squares being potentially attacked/defended in the next move by white/black pawn
     1: all squares being potentially attacked/defended in the next move by white/black knight
     2: all squares being potentially attacked/defended in the next move by white/black bishop
@@ -1066,7 +1093,8 @@ def get_board_3d_2nd_attacks(board):
     return(board_2nd_attacks)
 
 def get_board_3d_pawn_move(board):
-    """converts chess board into 3D (2, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (2, 8, 8) list with board[i] representing:
     0: all squares being a potential move by white pawns
     1: all squares being a potential move by black pawns
 
@@ -1100,7 +1128,8 @@ def get_board_3d_pawn_move(board):
     return(board_pawn_move)
 
 def get_board_total(board):
-    """converts chess board into 3D (34, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (34, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1168,7 +1197,7 @@ def get_model_input_parameter(board):
 
 
 def setup_logging(dt_string):
-    """ 
+    """
     Set up logging for the program. If dt_string is not None, then the log file will be saved in the games folder with the name of the folder being the date and time of the game. If dt_string is None, then the log file will not be saved.
     Args:
         dt_string (str): date and time of the game
