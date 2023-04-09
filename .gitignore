@@ -8,7 +8,7 @@ data/
 evaluation/
 games/
 history/
-logo/
+visuals/development/
 model/
 prediction/
 literature/
@@ -16,3 +16,7 @@ digital_secrets/
 
 .DS_Store
 .git/
+data.csv
+.gitignore
+41-million-sf11-epds.7z
+all-epds
