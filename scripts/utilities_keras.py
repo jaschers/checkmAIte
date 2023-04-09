@@ -3,6 +3,8 @@ import pandas as pd
 import time
 import numpy as np
 import os
+import psutil
+import dask.array as da
 
 def ResBlock(z, kernelsizes, filters, increase_dim = False):
     # https://github.com/priya-dwivedi/Deep-Learning/blob/master/resnet_keras/Residual_Networks_yourself.ipynb
@@ -47,13 +49,14 @@ def load_data(num_runs, name_data, score_cut):
         frame = [table, table_run]
         table = pd.concat(frame)
         end = time.time()
+        print(f"Memory usage after loading table run {run}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
     table = table.reset_index(drop = True)
-    print("Number of events including duplicates:", len(table))
+    print("Number of boards including duplicates:", len(table))
     table = table.loc[table.astype(str).drop_duplicates().index]
     table = table.reset_index(drop = True)
-    print("Number of events without duplicates:", len(table))
+    print("Number of boards without duplicates:", len(table))
 
     if score_cut != None:
         if len(score_cut) == 1:
@@ -64,11 +67,14 @@ def load_data(num_runs, name_data, score_cut):
             mask = ~mask
             table = table[mask]
             table = table.reset_index(drop = True)
+    print("Number of boards after score cut:", len(table))
     print(table)
 
-    X_board3d = np.array(table["board3d"].values.tolist())
-    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist())
-    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist())
+    print(f"Memory usage after loading all runs:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
+    X_board3d = np.array(table["board3d"].values.tolist(), dtype = np.int8)
+    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist(), dtype = np.int8)
+    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist(), dtype = np.int16)
+    print(f"Memory usage after converting data to numpy arrays", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
 
     return(X_board3d, X_parameter, Y)
 
@@ -164,3 +170,44 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     board_fen += f" {fullmove_number}"
     
     return(board_fen)
+
+
+# # generate batches of data from our dask dataframe
+# def dask_data_generator(X_board3d, X_parameter, Y, dataset_size, batch_size):
+#     while True:
+#         start = time.time()
+
+#         sample_indices = np.random.choice(dataset_size, size = batch_size, replace=False)
+#         sample_indices = np.sort(sample_indices)
+        
+#         X_board3d_batch = da.take(X_board3d, sample_indices, axis = 0)
+#         X_parameter_batch = da.take(X_parameter, sample_indices, axis = 0)
+#         Y_batch = da.take(Y, sample_indices, axis = 0)
+
+#         end = time.time()
+
+#         print(f"\nBatch loaded in {end-start} sec...")
+#         print("Memory usage after loading batch:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
+
+#         yield([X_board3d_batch.compute(), X_parameter_batch.compute()], Y_batch.compute())
+
+def dask_data_generator(X_board3d, X_parameter, Y, dataset_size, batch_size):
+    start = 0
+    while start < dataset_size:
+        start_time = time.time()
+        end = start + batch_size
+        end = min(end, dataset_size)
+        indices = np.arange(start, end)
+
+        X_board3d_batch = da.take(X_board3d, indices, axis = 0)
+        X_parameter_batch = da.take(X_parameter, indices, axis = 0)
+        Y_batch = da.take(Y, indices, axis = 0)
+
+        end_time = time.time()
+
+        print(f"\nBatch loaded in {end_time-start_time} sec...")
+        print("Memory usage after loading batch:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
+
+        yield ([X_board3d_batch.compute(), X_parameter_batch.compute()], Y_batch.compute())
+        
+        start = end
