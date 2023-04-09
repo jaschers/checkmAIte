@@ -31,7 +31,7 @@ parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs=
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")
 parser.add_argument("-bs", "--batch_size", type = int, required = False, metavar = "-", default = 1024, help = "Batch size used for training")
-parser.add_argument("-g", "--generator", type = str, required = False, metavar = "-", default = "y", help = "Use of generator for training (required for large data sets and limited RAM)")
+parser.add_argument("-g", "--generator", type = str, required = False, metavar = "-", default = "n", help = "Use of generator for training (required for large data sets and limited RAM)")
 
 args = parser.parse_args()
 ##########################################################################################
