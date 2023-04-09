@@ -37,6 +37,13 @@ counter = 0
 score_max = 15000
 
 def square_to_index(square):
+    """
+    converts square number to 2D index
+    Args:
+        square (int): square number
+    Returns:
+        list: 2D index
+    """
     squares = np.linspace(0, 8*8 - 1, 8*8, dtype = int)
     squares_2d = np.reshape(squares, (8,8))
     squares_2d = np.flip(squares_2d, 0)
@@ -53,7 +60,8 @@ def square_to_index(square):
         return(indices) 
 
 def board_int(board):
-    """converts chess board into 2D list with
+    """
+    converts chess board into 2D list with
     1: pawn
     2: knight
     3: bishop
@@ -91,7 +99,8 @@ def board_int(board):
     return(board_arr)
 
 def board_3d_attack_int(board):
-    """converts chess board into 3D (24, 8, 8) array with board[i] representing:
+    """
+    converts chess board into 3D (24, 8, 8) array with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -172,7 +181,8 @@ def board_3d_attack_int(board):
     return(board_arr)
 
 def board_score(board, depth = 0):
-    """Evaluates the score of a board for player white based on stockfish.
+    """
+    Evaluates the score of a board for player white based on stockfish.
 
     Args:
         board (chess.Board): chess board in FEN format
@@ -191,7 +201,8 @@ def board_score(board, depth = 0):
     return(score)
 
 def boards_random(num_boards):
-    """Creates random boards by playing games with random moves
+    """
+    Creates random boards by playing games with random moves
 
     Args:
         num_boards (int): number of boards being created
@@ -222,64 +233,19 @@ def boards_random(num_boards):
     return(boards_random_int, boards_random_parameter, boards_random_score)
 
 def ai_board_score_pred(board, model):
+    """
+    Predicts the score of a board on the CNN model.
+    Args:
+        board (chess.Board): chess board
+        model (keras.model): CNN model
+    Returns:
+        float: predicted score of the input board
+    """
     board_3d_int = [get_board_total(board.copy())]
     board_3d_int = np.moveaxis(board_3d_int, 1, -1)
     parameters = np.array([get_model_input_parameter(board.copy())])
     prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
-
-# def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
-#     if depth < 0 or type(depth) != int:
-#         raise ValueError("Depth needs to be int and greater than 0")
-
-#     # Check if the current game state is already in the transposition table
-#     hash_value = board.fen()
-#     if hash_value in transposition_table:
-#         return(transposition_table[hash_value])
-
-#     if depth == 0 or board.is_game_over() == True:
-#         prediction = ai_board_score_pred(board.copy(), model)
- 
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = prediction
-#         return(prediction)
-
-#     # maximizing_player == True -> AI's turn
-#     if maximizing_player == True:
-#         max_eval = - np.inf
-#         ordered_moves = order_moves(board)
-#         for valid_move in ordered_moves:
-#             board.push(valid_move)
-#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
-#             board.pop()
-#             if eval > max_eval:
-#                 max_eval = eval
-#             alpha = max(eval, alpha)
-#             # print("maximizing player alpha", alpha)
-#             if beta <= alpha:
-#                 break
-        
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = max_eval
-#         return(max_eval)
-
-#     # maximizing_player == False -> player's turn
-#     else:
-#         min_eval = np.inf
-#         ordered_moves = order_moves(board)
-#         for valid_move in ordered_moves:
-#             board.push(valid_move)
-#             eval = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
-#             board.pop()
-#             if eval < min_eval:
-#                 min_eval = eval
-#             beta = min(eval, beta)
-#             if beta <= alpha:
-#                 break
-        
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = min_eval
-#         return(min_eval)
 
 
 def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
@@ -332,73 +298,25 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = min_eval
         return(min_eval)
-    
-# def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
-#     if depth < 0 or type(depth) != int:
-#         raise ValueError("Depth needs to be int and greater than 0")
 
-#     hash_value = board.fen()
-#     # if hash_value in transposition_table:
-#     #     print("transposition_table 1")
-#     #     print(hash_value)
-#     #     print(transposition_table)
-#     #     return(transposition_table[hash_value])
-
-#     if depth == 0 or board.is_game_over():
-#         # Check if the current game state is already in the transposition table
-#         if hash_value in transposition_table:
-#             # print("transposition_table")
-#             return(transposition_table[hash_value])
-#         else:
-#             prediction = ai_board_score_pred(board.copy(), model)
-#             # Add the current game state and its evaluation to the transposition table
-#             transposition_table[hash_value] = (prediction, best_move)
-#             return(prediction, best_move)
-
-#     if maximizing_player:
-#         max_eval = -np.inf
-#         ordered_moves = order_moves(board, transposition_table)
-#         if verbose_minimax == True:
-#             ordered_moves = tqdm(ordered_moves)
-#         for valid_move in ordered_moves:
-#             board.push(valid_move)
-#             eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, best_move, verbose_minimax = False)
-#             board.pop()
-#             if eval > max_eval:
-#                 max_eval = eval
-#                 best_move = valid_move
-#             alpha = max(alpha, eval)
-#             if alpha >= beta:
-#                 break
-
-#         # Add the current game state and its evaluation to the transposition table
-#         if hash_value == chess.Board("rnbqkb1r/pppppppp/7n/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2").fen():
-#             print("max_eval, best_move", max_eval, best_move)
-#         transposition_table[hash_value] = (max_eval, best_move)
-#         return (max_eval, best_move)
-
-#     else:
-#         min_eval = np.inf
-#         ordered_moves = order_moves(board, transposition_table)
-#         for valid_move in ordered_moves:
-#             board.push(valid_move)
-#             eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
-#             board.pop()
-#             if eval < min_eval:
-#                 min_eval = eval
-#                 best_move_min_player = valid_move
-#             beta = min(beta, eval)
-#             if beta <= alpha:
-#                 break
-
-#         # Add the current game state and its evaluation to the transposition table
-#         if hash_value == chess.Board("rnbqkb1r/pppppppp/7n/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2").fen():
-#             print("min_eval, best_move_min_player", min_eval, best_move_min_player)
-#         transposition_table[hash_value] = (min_eval, best_move_min_player)
-#         return (min_eval, best_move)
-    
 
 def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+    """
+    Minimax algorithm with alpha-beta pruning, transposition table and move ordering
+    Args:
+        board (chess.Board): chess board
+        model (keras.model): CNN model
+        depth (int): depth of the search tree
+        alpha (float): alpha value for alpha-beta pruning
+        beta (float): beta value for alpha-beta pruning
+        maximizing_player (bool): True if AI is playing, False if player is playing
+        transposition_table (dict): transposition table
+        best_move (chess.Move): best move
+        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+    Returns:
+        float: evaluation of the board
+        chess.Move: best move
+    """
     # print("alpha", alpha, "beta", beta)
     if depth < 0 or type(depth) != int:
         raise ValueError("Depth needs to be int and greater than 0")
@@ -497,24 +415,19 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return (min_eval, best_move)
 
 
-# def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
-#     max_move = None
-#     max_eval = -np.inf
-
-#     ordered_moves = order_moves(board)
-
-#     for valid_move in tqdm(ordered_moves):
-#         board.push(valid_move)
-#         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-#         eval = minimax(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
-#         board.pop()
-#         if eval > max_eval:
-#             max_eval = eval
-#             max_move = valid_move
-
-#     return(max_move, max_eval)
-
 def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
+    """
+    Get the best move for the AI
+    Args:
+        board (chess.Board): chess board
+        model (keras.Model): neural network model
+        depth (int): depth of the minimax algorithm
+        transposition_table (dict): transposition table
+        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+    Returns:
+        chess.Move: best move
+        float: evaluation of the board
+    """
     max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, best_move = None, verbose_minimax = verbose_minimax)
 
     return(max_move, max_eval)
@@ -540,7 +453,8 @@ def get_ai_move_parallel(board, model, depth, transposition_table, verbose_minim
     return(max_move, max_eval)
 
 def save_board_png(board, game_name, counter):
-    """Saves the current board as png in games/{game_name}/board{counter}.png
+    """
+    Saves the current board as png in games/{game_name}/board{counter}.png
 
     Args:
         board (chess.Board): chess board
@@ -555,7 +469,8 @@ def save_board_png(board, game_name, counter):
     os.system(f"rm games/{game_name}/board{counter}.svg")
 
 def delete_board_png(game_name, counter):
-    """deletes the board saved as games/{game_name}/board{counter}.png
+    """
+    deletes the board saved as games/{game_name}/board{counter}.png
 
     Args:
         game_name (str): name of the current chess game
@@ -564,7 +479,8 @@ def delete_board_png(game_name, counter):
     os.system(f"rm games/{game_name}/board{counter}.png")
 
 def save_board_gif(boards_png, game_name):
-    """Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
+    """
+    Loads png images of a chess game and converts it into a gif. The png images are deleted afterwards
 
     Args:
         boards_png (list): list of PIL.PngImagePlugin.PngImageFile images
@@ -583,7 +499,8 @@ def save_board_gif(boards_png, game_name):
     os.system(f"rm games/{game_name}/*.png")
 
 def get_valid_moves(board):
-    """returns the valid moves of a board
+    """
+    returns the valid moves of a board
 
     Args:
         board (chess.Board): chess board
@@ -597,7 +514,8 @@ def get_valid_moves(board):
     return(valid_moves, valid_moves_str)
 
 def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
-    """Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
+    """
+    Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
 
     Args:
         board (chess.Board): chess board
@@ -632,7 +550,8 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     return(best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index)
 
 def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en_passant, halfmove_clock, fullmove_number):
-    """Converts a n-dimensional list of the chess board back to its FEN format
+    """
+    Converts a n-dimensional list of the chess board back to its FEN format
 
     Args:
         board_int (np.array): (n, 8, 8) list of the input board with {1,0} int values
@@ -693,6 +612,12 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     return(board_fen)
 
 def plot_history(history, name):
+    """
+    Plot training and validation loss
+    Args:
+        history (dict): history of the training
+        name (str): name of the model
+    """
     print("Plotting history...")
     plt.figure()
     plt.plot(history["loss"], label="Training")
@@ -705,6 +630,13 @@ def plot_history(history, name):
     plt.close()
 
 def plot_2d_scattering(prediction_val, true_score_val, name):
+    """
+    Plot 2D scattering of the true and predicted scores
+    Args:
+        prediction_val (np.array): (n,) array of the predicted scores
+        true_score_val (np.array): (n,) array of the true scores
+        name (str): name of the model
+    """
     print("Plotting 2D scattering...")
     viridis = cm.get_cmap('viridis', 256)
     newcolors = viridis(np.linspace(0, 1, 256))
@@ -726,6 +658,14 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     plt.close()
 
 def plot_hist_difference_total(prediction, true, parameter, name):
+    """
+    Plot histogram of the difference between the true and predicted scores
+    Args:
+        prediction (np.array): (n,) array of the predicted scores
+        true (np.array): (n,) array of the true scores 
+        parameter (str): name of the parameter
+        name (str): name of the model
+    """
     print(f"Plotting {parameter} histogram difference total...")
     difference = prediction - true
     mean = np.mean(difference)
@@ -745,6 +685,13 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     plt.close()
 
 def plot_hist_difference_binned(prediction_val, true_score_val, name):
+    """
+    Plot histogram of the difference between the true and predicted scores binned
+    Args:
+        prediction_val (np.array): (n,) array of the predicted scores
+        true_score_val (np.array): (n,) array of the true scores
+        name (str): name of the model
+    """
     print("Plotting score histogram difference binned...")
     true_score_min, true_score_max = np.min(true_score_val), np.max(true_score_val)
     bins = np.linspace(true_score_min, true_score_max, 5)
@@ -774,6 +721,12 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
     plt.close()
 
 def save_examples(table, name):
+    """
+    Save examples of the boards
+    Args:
+        table (pd.DataFrame): table with the boards and the scores
+        name (str): name of the model
+    """
     print("Saving examples...")
     os.system(f"rm evaluation/{name}/examples/*")
 
@@ -836,6 +789,13 @@ def save_examples(table, name):
         print(f"Board {i} saved...")
 
 def path_uniquify(path):
+    """
+    Add a number to the end of the path if the path already exists
+    Args:
+        path (str): path to the file
+    Returns:
+        path (str): path to the file
+    """
     filename = path
     counter = 1
 
@@ -846,6 +806,16 @@ def path_uniquify(path):
     return(path)
 
 def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
+    """
+    Make a heatmap of the gradient of the output neuron
+    Args:
+        img (np.array): input image
+        model (keras.model): model
+        last_conv_layer_name (str): name of the last convolutional layer
+        pred_index (int): index of the output neuron
+    Returns:
+        heatmap (np.array): heatmap
+    """
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
     grad_model = models.Model([model.inputs], [model.get_layer(last_conv_layer_name).output, model.output])
@@ -881,7 +851,8 @@ def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
     return(heatmap.numpy())
 
 def get_board_parameters(board):
-    """Returns board parameters from a given board.
+    """
+    Returns board parameters from a given board.
 
     Args:
         board (chess.Board): chess board
@@ -937,7 +908,8 @@ def get_board_parameters(board):
         )
 
 def get_board_pinned(board):
-    """Returns board of pinned black and white pieces
+    """
+    Returns board of pinned black and white pieces
 
     Args:
         board (chess.Board): chess board
@@ -955,7 +927,8 @@ def get_board_pinned(board):
     return(board_pinned)
 
 def get_board_en_passant(board):
-    """Returns board of possible en passant move
+    """
+    Returns board of possible en passant move
 
     Args:
         board (chess.Board): chess board
@@ -972,7 +945,8 @@ def get_board_en_passant(board):
     return(board_en_passant)
 
 def get_board_3d_pieces(board):
-    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (12, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1015,7 +989,8 @@ def get_board_3d_pieces(board):
     return(board_pieces)
 
 def get_board_3d_attacks(board):
-    """converts chess board into 3D (12, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (12, 8, 8) list with board[i] representing:
     0: all squares being attacked/defended by white pawn
     1: all squares being attacked/defended by white knight
     2: all squares being attacked/defended by white bishop
@@ -1071,7 +1046,8 @@ def get_board_3d_attacks(board):
     return(board_attacks)
 
 def get_board_3d_2nd_attacks(board):
-    """converts chess board into 3D (6, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (6, 8, 8) list with board[i] representing:
     0: all squares being potentially attacked/defended in the next move by white/black pawn
     1: all squares being potentially attacked/defended in the next move by white/black knight
     2: all squares being potentially attacked/defended in the next move by white/black bishop
@@ -1117,7 +1093,8 @@ def get_board_3d_2nd_attacks(board):
     return(board_2nd_attacks)
 
 def get_board_3d_pawn_move(board):
-    """converts chess board into 3D (2, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (2, 8, 8) list with board[i] representing:
     0: all squares being a potential move by white pawns
     1: all squares being a potential move by black pawns
 
@@ -1151,7 +1128,8 @@ def get_board_3d_pawn_move(board):
     return(board_pawn_move)
 
 def get_board_total(board):
-    """converts chess board into 3D (34, 8, 8) list with board[i] representing:
+    """
+    converts chess board into 3D (34, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1218,43 +1196,14 @@ def get_model_input_parameter(board):
     return(X_parameter)
 
 
-def display_chessboard_tkinter(board, root):
-    # get the SVG representation of the board
-    board_svg = chess.svg.board(board=board, flipped=True) #, flipped=True
-
-    # render the SVG image as a PNG image
-    png_data = cairosvg.svg2png(bytestring=board_svg)
-
-    # open the PNG image using PIL
-    image = Image.open(io.BytesIO(png_data))
-
-    # convert the image to a Tkinter-compatible format
-    tk_image = ImageTk.PhotoImage(image)
-
-    root.geometry('{}x{}'.format(image.width, image.height))
-    # create a Tkinter label with the image
-    label = tk.Label(root, image=tk_image)
-    label.place(x=0, y=0)
-
-    # run the Tkinter event loop
-    root.update()
-
-def display_chessboard(board, board_img=None):
-    board_svg = chess.svg.board(board=board, flipped=True)
-    png_bytes = cairosvg.svg2png(bytestring=board_svg.encode('utf-8'))
-    new_board_img = Image.open(io.BytesIO(png_bytes))
-    
-    if board_img is not None:
-        board_img.close()
-        if os.name == 'nt': # for Windows OS
-            os.system("taskkill /im Microsoft.Photos.exe /f")
-        else: # for macOS
-            os.system('osascript -e "tell application \\"Preview\\" to close every window"')
-    
-    new_board_img.show()
-    return new_board_img
-
 def setup_logging(dt_string):
+    """
+    Set up logging for the program. If dt_string is not None, then the log file will be saved in the games folder with the name of the folder being the date and time of the game. If dt_string is None, then the log file will not be saved.
+    Args:
+        dt_string (str): date and time of the game
+    Returns:
+        logger (logging.Logger): logger object
+    """
     # set up logger
     # Create a logger object
     logger = logging.getLogger(__name__)
@@ -1281,13 +1230,16 @@ def setup_logging(dt_string):
 
 def order_moves(board, transposition_table):
     """
-    Apply move ordering heuristic to the legal moves of a given chess board.
-
-    Parameters:
-    board (chess.Board): the chess board to order the moves for.
-
+    Orders the moves in the following order:
+    1. Moves that are in the transposition table
+    2. Moves that give check
+    3. Moves that capture a piece
+    4. Other moves by piece position (centre is favoured)
+    Args: 
+        board (chess.Board): chess board
+        transposition_table (dict): transposition table
     Returns:
-    A list of legal moves for the given board, ordered according to the transposition table, check, MVV-LVA heuristic and piece positions.
+        list: list of moves in the order described above
     """
     moves = list(board.legal_moves)
 
@@ -1323,17 +1275,40 @@ def order_moves(board, transposition_table):
 
 # Define a function to get the value of a piece based on its type
 def piece_value(piece):
+    """
+    Returns the value of a chess piece based on its type
+    Args:
+        piece (chess.Piece): chess piece
+    Returns:
+        int: value of the chess piece
+    """
     # Define the value of each chess piece for the MVV-LVA heuristic
     piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
     return(piece_values.get(piece.piece_type, 0))
 
 def capture_score(board, move):
+    """
+    Returns the value of the captured piece minus the value of the capturing piece
+    Args:
+        board (chess.Board): chess board
+        move (chess.Move): chess move
+    Returns:
+        int: value of the captured piece minus the value of the capturing piece
+    """
     captured_piece_value = piece_value(board.piece_at(move.to_square))
     attacking_piece_value = piece_value(board.piece_at(move.from_square))
     capture_score = captured_piece_value - attacking_piece_value
     return(capture_score)
 
 def position_score(board, move):
+    """
+    Returns the position score of a move
+    Args:
+        board (chess.Board): chess board
+        move (chess.Move): chess move
+    Returns:
+        int: position score of the move
+    """
     position_score = 0
     if board.gives_check(move):
         position_score += 6

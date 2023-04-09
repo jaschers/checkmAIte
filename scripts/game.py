@@ -79,6 +79,12 @@ class ChessApp:
 
 
     def draw_board(self):
+        """
+        Draw the chess board on the canvas
+
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
         # Create SVG image of chess board using chess.svg.board module
         # svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
         svg_board = chess.svg.board(self.board).encode("utf-8")
@@ -96,6 +102,11 @@ class ChessApp:
         self.master.update()
 
     def on_click(self, event):
+        """
+        Handle mouse click event
+        Args: 
+            self (ChessApp): An instance of ChessApp.
+        """
         # Get the square that was clicked on
         # consider 15x15 border of the board
         col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
@@ -112,6 +123,11 @@ class ChessApp:
             self.selected_piece = piece
 
     def on_release(self, event):
+        """
+        Handle mouse release event
+        Args: 
+            self (ChessApp): An instance of ChessApp.
+        """
         # If a piece is selected, attempt to move it to the released square
         if self.selected_piece is not None:
             # Get the square that was released on
@@ -147,6 +163,11 @@ class ChessApp:
             self.selected_piece = None
     
     def undo_move(self):
+        """
+        Undo the last move
+        Args: 
+            self (ChessApp): An instance of ChessApp.
+        """
         if self.board.fullmove_number < 2:
             self.logger.info("A move has to be played first")
         else:
@@ -159,6 +180,11 @@ class ChessApp:
                 self.board_counter -= 2
 
     def promotion(self):
+        """
+        Promote pawn to queen, rook, knight or bishop
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
         inp = self.text.get(1.0, "end-1c")
         if inp in ["q", "r", "k", "b"]:
             move_uci = self.move.uci()
@@ -173,6 +199,11 @@ class ChessApp:
             self.logger.info("Invalid piece type")
 
     def ai_move(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
         # get all valid moves
         board_fen_previous = self.board.fen()
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
@@ -229,6 +260,11 @@ class ChessApp:
         self.check_game_over()
     
     def setup_save(self):
+        """
+        Setup saving of game
+        Args: 
+            self (ChessApp): An instance of ChessApp.
+        """
         if args.save == 0:
             # setup logger
             self.logger = setup_logging(None)
@@ -244,6 +280,11 @@ class ChessApp:
             self.board_counter = 2
 
     def check_game_over(self):
+        """
+        Check if game is over
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
         # check if game is over
         if self.board.is_game_over():
             self.logger.info("Game over!")

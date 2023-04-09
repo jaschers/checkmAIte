@@ -13,10 +13,11 @@ model/
 prediction/
 literature/
 digital_secrets/
+visuals/development
 
 .DS_Store
 .git/
 data.csv
 .gitignore
 41-million-sf11-epds.7z
-all-epds
+all-epds/
