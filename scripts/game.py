@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(description=script_descr)
 parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
 parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
 parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
+parser.add_argument("-f", "--flipped", type = int, required = True, metavar = "-", help = "Flip board 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -86,8 +87,10 @@ class ChessApp:
             self (ChessApp): An instance of ChessApp.
         """
         # Create SVG image of chess board using chess.svg.board module
-        # svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
-        svg_board = chess.svg.board(self.board).encode("utf-8")
+        if args.flipped == 1:
+            svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
+        else:
+            svg_board = chess.svg.board(self.board).encode("utf-8")
 
         # Convert SVG to PNG image using cairosvg library
         png_data = cairosvg.svg2png(bytestring=svg_board)
@@ -111,8 +114,10 @@ class ChessApp:
         # consider 15x15 border of the board
         col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
         row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-        square = chess.square(col, 7 - row) # if board is flipped
-        # square = chess.square(7 - col, row)
+        if args.flipped == 1:
+            square = chess.square(7 - col, row)
+        else:
+            square = chess.square(col, 7 - row)
 
         # Get the piece that is on the clicked square
         piece = self.board.piece_at(square)
@@ -133,8 +138,10 @@ class ChessApp:
             # Get the square that was released on
             col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
             row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-            self.release_square = chess.square(col, 7 - row) # if board is flipped
-            # self.release_square = chess.square(7 - col, row)
+            if args.flipped == 1:
+                self.release_square = chess.square(7 - col, row)
+            else:
+                self.release_square = chess.square(col, 7 - row)
 
             # Attempt to make the move
             self.move = chess.Move(self.selected_square, self.release_square)
