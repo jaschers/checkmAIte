@@ -22,13 +22,15 @@ parser = argparse.ArgumentParser(description=script_descr)
 parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
 parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "34_8_8_depth0_mm100_ms15000", help = "name of the data folder")
 parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs='+', metavar = "-", default = None, help = "score cut applied on the data (default: None)")
+parser.add_argument("-rh", "--read_human", type = str, required = False, metavar = "-", default = "y", help = "Should human data be read? [y/n], default: y")
+parser.add_argument("-rd", "--read_draw", type = str, required = False, metavar = "-", default = "y", help = "Should draw data be read? [y/n], default: y")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 
 args = parser.parse_args()
 ##########################################################################################
 
 # load data
-X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut)
+X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut, args.read_human, args.read_draw)
 
 X_board3d = np.moveaxis(X_board3d, 1, -1)
 X_board3d_shape = np.shape(X_board3d)
@@ -68,8 +70,10 @@ df6 = pd.DataFrame({"true checkmate": Y_val[:,2]})
 df7 = pd.DataFrame({"predicted stalemate": prediction_val[:,3]})
 df8 = pd.DataFrame({"true stalemate": Y_val[:,3]})
 df9 = pd.DataFrame({"player move": X_parameter_val[:,0]})
+df10 = pd.DataFrame({"seventyfive moves": X_parameter_val[:,4]})
+df11 = pd.DataFrame({"fivefold repetition": X_parameter_val[:,5]})
 
-table_pred_val = pd.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], axis = 1)
+table_pred_val = pd.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11], axis = 1)
 
 print(table_pred_val)
 
