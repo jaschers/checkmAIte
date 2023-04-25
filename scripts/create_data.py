@@ -16,7 +16,7 @@ for run in range(number_runs):
     run = run + 0
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
-    boards_random_int, boards_random_parameter, boards_random_score = boards_random(num_boards = 1) #10000
+    boards_random_int, boards_random_parameter, boards_random_score = boards_random(num_boards = 10000) #10000
 
     print(type(boards_random_int))
 
@@ -45,6 +45,6 @@ for run in range(number_runs):
 
     os.makedirs("data/3d/40_8_8_depth0_mm100_ms15000_dd/", exist_ok = True)
 
-    table.to_hdf(f"data/3d/40_8_8_depth0_mm100_ms15000_dd/data{run}.h5", key = "table", format = "table")
+    table.to_hdf(f"data/3d/40_8_8_depth0_mm100_ms15000_dd/data{run}.h5", key = "table")
 
     end = time.time()
