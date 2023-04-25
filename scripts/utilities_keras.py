@@ -5,6 +5,7 @@ import numpy as np
 import os
 import psutil
 import dask.array as da
+import glob
 
 def ResBlock(z, kernelsizes, filters, increase_dim = False):
     # https://github.com/priya-dwivedi/Deep-Learning/blob/master/resnet_keras/Residual_Networks_yourself.ipynb
@@ -38,7 +39,7 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
     
     return out
 
-def load_data(num_runs, name_data, score_cut):
+def load_data(num_runs, name_data, score_cut, read_human, read_draw):
     # load data
     table = pd.DataFrame()
     for run in range(num_runs):
@@ -51,6 +52,36 @@ def load_data(num_runs, name_data, score_cut):
         end = time.time()
         print(f"Memory usage after loading table run {run}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
+
+    if read_human == "y":
+        dir_human = "data/3d/40_8_8_depth0_ms15000_human/"
+        filenames = glob.glob(dir_human + "*")
+        filenames = np.sort(filenames)
+
+        for filename in filenames:
+            print(f"Loading file {filename}...")
+            start = time.time()
+            table_human = pd.read_hdf(filename, key = "table")
+            middle = time.time()
+            frame = [table, table_human]
+            table = pd.concat(frame)
+            print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
+            print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
+
+    if read_draw == "y":
+        dir_draw = "data/3d/40_8_8_draw/"
+        filenames = glob.glob(dir_draw + "*")
+        filenames = np.sort(filenames)
+
+        for filename in filenames:
+            print(f"Loading file {filename}...")
+            start = time.time()
+            table_draw = pd.read_hdf(filename, key = "table")
+            middle = time.time()
+            frame = [table, table_draw]
+            table = pd.concat(frame)
+            print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
+            print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
 
     table = table.reset_index(drop = True)
     print("Number of boards including duplicates:", len(table))
@@ -68,6 +99,11 @@ def load_data(num_runs, name_data, score_cut):
             table = table[mask]
             table = table.reset_index(drop = True)
     print("Number of boards after score cut:", len(table))
+    print(table)
+
+    # shuffle table
+    table = table.sample(frac=1).reset_index(drop=True)
+    print("Shuffled table")
     print(table)
 
     print(f"Memory usage after loading all runs:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
