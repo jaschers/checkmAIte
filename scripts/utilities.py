@@ -721,6 +721,30 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
     # plt.show()
     plt.close()
 
+def plot_hist(table, parameter, name):
+    table_score = table[table[parameter] == 1].reset_index(drop = True)
+    table_score = table_score["predicted score"]
+
+    mean = np.mean(table_score)
+    median = np.median(table_score)
+    std = np.std(table_score)
+
+    parameter = parameter.replace(" ", "")
+
+    plt.figure()
+    plt.hist(table_score, bins = 50, label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
+    plt.xlabel(f"predicted score")
+    plt.ylabel("Number of boards")
+    # if parameter != "score":
+    plt.yscale("log")
+    plt.xlim(-1, 1)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/{parameter}_hist_score_total_{name}.pdf")
+    # plt.show()
+    plt.close()
+
+
 def save_examples(table, name):
     """
     Save examples of the boards
@@ -1207,7 +1231,7 @@ def get_board_3d_pawn_move(board):
 
 def get_board_total(board):
     """
-    converts chess board into 3D (34, 8, 8) list with board[i] representing:
+    converts chess board into 3D (40, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1232,22 +1256,28 @@ def get_board_total(board):
     21: all squares being attacked/defended by black rook
     22: all squares being attacked/defended by black queen
     23: all squares being attacked/defended by black king
-    24: all squares being potentially attacked/defended in the next move by white/black pawn
-    25: all squares being potentially attacked/defended in the next move by white/black knight
-    26: all squares being potentially attacked/defended in the next move by white/black bishop
-    27: all squares being potentially attacked/defended in the next move by white/black rook
-    28: all squares being potentially attacked/defended in the next move by white/black queen
-    29: all squares being potentially attacked/defended in the next move by white/black king
-    30: all squares being a potential move by white pawns
-    31: all squares being a potential move by black pawns
-    32: all squares being pinned by black or white
-    33: all squares being possible en passant moves
+    24: all squares being potentially attacked/defended in the next move by white pawn
+    25: all squares being potentially attacked/defended in the next move by white knight
+    26: all squares being potentially attacked/defended in the next move by white bishop
+    27: all squares being potentially attacked/defended in the next move by white rook
+    28: all squares being potentially attacked/defended in the next move by white queen
+    29: all squares being potentially attacked/defended in the next move by white king
+    30: all squares being potentially attacked/defended in the next move by black pawn
+    31: all squares being potentially attacked/defended in the next move by black knight
+    32: all squares being potentially attacked/defended in the next move by black bishop
+    33: all squares being potentially attacked/defended in the next move by black rook
+    34: all squares being potentially attacked/defended in the next move by black queen
+    35: all squares being potentially attacked/defended in the next move by black king
+    36: all squares being a potential move by white pawns
+    37: all squares being a potential move by black pawns
+    38: all squares being pinned by black or white
+    39: all squares being possible en passant moves
 
     Args:
         board (chess.Board): chess board
 
     Returns:
-        list: (34, 8, 8) list of the input board
+        list: (40, 8, 8) list of the input board
     """
     board_pieces = get_board_3d_pieces(board.copy())
     board_pawn_move = get_board_3d_pawn_move(board.copy())
@@ -1269,6 +1299,25 @@ def get_board_total(board):
     return(board_total)
 
 def get_model_input_parameter(board):
+    """
+    Returns neural network input parameters from a given board.
+
+    Args:
+        board (chess.Board): chess board
+    
+    Returns:
+        tuple: (10,) of:
+            bool: side to move (True = white, False = black)
+            int: halfmove clock number
+            bool: checks if white has insufficient winning material
+            bool: checks if black has insufficient winning material
+            bool: checks seventy-five-move rule
+            bool: checks fivefold repetition
+            bool: checks castling right king side of white
+            bool: checks castling right queen side of white
+            bool: checks castling right king side of black
+            bool: checks castling right queen side of black
+    """
     X_parameter = get_board_parameters(board.copy())
     X_parameter = X_parameter[:2] + X_parameter[6:]
     return(X_parameter)
