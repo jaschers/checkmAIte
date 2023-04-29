@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(description=script_descr)
 parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
 parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
 parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
-parser.add_argument("-f", "--flipped", type = int, required = True, metavar = "-", help = "Flip board 0 (no) or 1 (yes)")
+parser.add_argument("-f", "--flipped", type = int, metavar = "-", default = 0, help = "Flip board 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -53,14 +53,14 @@ class ChessApp:
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
         # Draw initial chess board
-        self.board = chess.Board()
-        # self.board = chess.Board("rn2k2r/pp3ppp/1qpbpn2/1B1pN3/3P2b1/2P1P2P/PP3PP1/RNBQK2R w KQkq - 3 8")
+        # self.board = chess.Board()
+        self.board = chess.Board("2Q5/p2Q3p/Pp2p1pk/8/2B5/7p/2P2p1K/R7 w - - 0 38")
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
         self.draw_board()
 
-        self.model = models.load_model("model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5") # model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5
+        self.model = models.load_model("model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_rh300_rd9_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
 
         # initialsie transportation table
         self.transposition_table = {}
@@ -157,8 +157,7 @@ class ChessApp:
                     self.board_counter += 1
 
                 self.ai_move()
-            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55):
-                print(self.selected_square, self.release_square)
+            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55) and (self.board.is_check() == False):
                 self.text = tk.Text(self.master, height = 1, width = 2)
                 self.text.pack()
                 self.button = tk.Button(self.master, text="Enter promotion piece (q/r/k/b)", command=self.promotion)
