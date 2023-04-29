@@ -1014,7 +1014,7 @@ def get_board_3d_attacks(board):
     # initialise board array
     number_boards = 12 
     board_attacks = np.zeros((number_boards, 8, 8), dtype = int)
-
+    
     # get king positions
     king_pos_white, king_pos_black = board.king(chess.WHITE), board.king(chess.BLACK)
     # print("king_pos_white, king_pos_black")
@@ -1207,7 +1207,7 @@ def get_board_3d_pawn_move(board):
 
 def get_board_total(board):
     """
-    converts chess board into 3D (34, 8, 8) list with board[i] representing:
+    converts chess board into 3D (40, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1232,22 +1232,28 @@ def get_board_total(board):
     21: all squares being attacked/defended by black rook
     22: all squares being attacked/defended by black queen
     23: all squares being attacked/defended by black king
-    24: all squares being potentially attacked/defended in the next move by white/black pawn
-    25: all squares being potentially attacked/defended in the next move by white/black knight
-    26: all squares being potentially attacked/defended in the next move by white/black bishop
-    27: all squares being potentially attacked/defended in the next move by white/black rook
-    28: all squares being potentially attacked/defended in the next move by white/black queen
-    29: all squares being potentially attacked/defended in the next move by white/black king
-    30: all squares being a potential move by white pawns
-    31: all squares being a potential move by black pawns
-    32: all squares being pinned by black or white
-    33: all squares being possible en passant moves
+    24: all squares being potentially attacked/defended in the next move by white pawn
+    25: all squares being potentially attacked/defended in the next move by white knight
+    26: all squares being potentially attacked/defended in the next move by white bishop
+    27: all squares being potentially attacked/defended in the next move by white rook
+    28: all squares being potentially attacked/defended in the next move by white queen
+    29: all squares being potentially attacked/defended in the next move by white king
+    30: all squares being potentially attacked/defended in the next move by black pawn
+    31: all squares being potentially attacked/defended in the next move by black knight
+    32: all squares being potentially attacked/defended in the next move by black bishop
+    33: all squares being potentially attacked/defended in the next move by black rook
+    34: all squares being potentially attacked/defended in the next move by black queen
+    35: all squares being potentially attacked/defended in the next move by black king
+    36: all squares being a potential move by white pawns
+    37: all squares being a potential move by black pawns
+    38: all squares being pinned by black or white
+    39: all squares being possible en passant moves
 
     Args:
         board (chess.Board): chess board
 
     Returns:
-        list: (34, 8, 8) list of the input board
+        list: (40, 8, 8) list of the input board
     """
     board_pieces = get_board_3d_pieces(board.copy())
     board_pawn_move = get_board_3d_pawn_move(board.copy())
