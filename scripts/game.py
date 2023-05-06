@@ -10,7 +10,7 @@ import argparse
 from utilities import *
 from datetime import datetime
 import psutil
-
+from playsound import playsound
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -53,8 +53,8 @@ class ChessApp:
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
         # Draw initial chess board
-        # self.board = chess.Board()
-        self.board = chess.Board("2Q5/p2Q3p/Pp2p1pk/8/2B5/7p/2P2p1K/R7 w - - 0 38")
+        self.board = chess.Board()
+        # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 69")
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
@@ -150,12 +150,14 @@ class ChessApp:
             if self.move in self.board.legal_moves:
                 self.board.push(self.move)
                 self.draw_board()
-                self.check_game_over()
+                playsound('sounds/move-self.mp3')
+
 
                 if args.save == 1:
                     save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
                     self.board_counter += 1
 
+                self.check_game_over()
                 self.ai_move()
             elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55) and (self.board.is_check() == False):
                 self.text = tk.Text(self.master, height = 1, width = 2)
@@ -198,6 +200,13 @@ class ChessApp:
             self.move = chess.Move.from_uci(move_uci)
             self.board.push(self.move)
             self.draw_board()
+            playsound('sounds/move-self.mp3')
+
+            if args.save == 1:
+                save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+                self.board_counter += 1
+
+            self.check_game_over()
             self.button.pack_forget()
             self.text.pack_forget()
             self.ai_move()
@@ -261,6 +270,7 @@ class ChessApp:
             self.logger.info("AI move: %s", best_move_ai)
 
         self.draw_board()
+        playsound("sounds/move-self.mp3")
 
         self.logger.info("--------------------------------------------------------------------------")
         self.check_game_over()
