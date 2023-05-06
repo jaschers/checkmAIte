@@ -32,7 +32,7 @@ for filename in filenames:
 
     count = 0
     for line in tqdm(file):
-        if int(filename_id) >= 5 and int(filename_subid) >= 0:
+        if int(filename_id) >= 7 and int(filename_subid) >= 6:
             board_fen, _ = line.split("; ")
             board = chess.Board(board_fen)
 
@@ -42,7 +42,7 @@ for filename in filenames:
 
         count += 1
         if count == 10000:
-            if int(filename_id) >= 5 and int(filename_subid) >= 0:
+            if int(filename_id) >= 7 and int(filename_subid) >= 6:
                 boards_random_parameter = np.array(boards_random_parameter)
 
                 df1 = pd.DataFrame({"board3d": boards_random_int})
