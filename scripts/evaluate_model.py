@@ -18,14 +18,20 @@ parser.add_argument("-na", "--name", type = str, required = True, metavar = "-",
 args = parser.parse_args()
 ##########################################################################################
 
+max_score = 15000
 
 # load data
 print("Loading data...")
 table_pred_val = pd.read_hdf(f"prediction/{args.name}/prediction_val_{args.name}.h5", key = "table")
 table_examples = pd.read_hdf(f"prediction/{args.name}/examples_{args.name}.h5", key = "table")
 
-print(np.shape(table_examples["board3d"][0]))
+table_pred_val["predicted score"] = table_pred_val["predicted score"] * 2 * max_score
+table_pred_val["predicted score"] = table_pred_val["predicted score"] - max_score
 
+table_pred_val["true score"] = table_pred_val["true score"] * 2 * max_score
+table_pred_val["true score"] = table_pred_val["true score"] - max_score
+
+print(np.shape(table_examples["board3d"][0]))
 
 print(table_pred_val)
 print("Number of check boards:", len(np.where(table_pred_val["true check"] == 1)[0]))
@@ -56,4 +62,5 @@ plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true
 
 plot_hist(table_pred_val, "seventyfive moves", args.name)
 
+exit()
 save_examples(table_examples, args.name)
