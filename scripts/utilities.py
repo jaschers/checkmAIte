@@ -645,6 +645,7 @@ def plot_2d_scattering(prediction_val, true_score_val, name):
     newcmp = ListedColormap(newcolors)
 
     plt.figure()
+    plt.grid(alpha = 0.3)
     plt.hist2d(true_score_val, prediction_val, bins = (200, 200), cmap = newcmp, norm = LogNorm())
     cbar = plt.colorbar()
     cbar.set_label('Number of boards')
@@ -672,13 +673,18 @@ def plot_hist_difference_total(prediction, true, parameter, name):
     median = np.median(difference)
     std = np.std(difference)
     plt.figure()
-    plt.hist(difference, bins = 50, label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
+    if parameter != "score":
+        plt.hist(difference, bins = 25, range = (-1, 1), label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
+    else:
+        plt.hist(difference, bins = 25, range = (-15000, 15000), label = f"$\mu = {np.round(mean, 2)}$ \nmedian $={np.round(median, 2)}$ \n$\sigma={np.round(std, 2)}$")
     # plt.hist(difference, bins = 50, label = "$\mu = {0}$ \nmedian $={1}$ \n$\sigma={2}$".format(mean, median, std))
     plt.xlabel(f"pred. {parameter} - true {parameter}")
     plt.ylabel("Number of boards")
-    # if parameter != "score":
+    if parameter != "score":
+        plt.xlim(-1, 1)
+    else:
+        plt.xlim(-30000, 30000)
     plt.yscale("log")
-    plt.xlim(-1, 1)
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"evaluation/{name}/{parameter}_hist_difference_total_{name}.pdf")
@@ -709,7 +715,7 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
         std = np.std(difference)
         number_boards = len(difference)
         ax[subplot].set_title(f"{np.round(bins[subplot], 2)} < true score < {np.round(bins[subplot+1], 2)}")
-        ax[subplot].hist(difference, bins = 50, label = f"$\mu = {np.round(mean*1e4, 1)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 1)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 1)} \cdot 10^{{-4}}$ \n# boards = {number_boards}")
+        ax[subplot].hist(difference, bins = 25, label = f"$\mu = {np.round(mean*1e4, 1)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 1)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 1)} \cdot 10^{{-4}}$ \n# boards = {number_boards}")
         ax[subplot].legend()
         ymin, ymax = ax[subplot].get_ylim()
         ax[subplot].set_ylim(ymin, ymax * 2.0)
@@ -722,6 +728,7 @@ def plot_hist_difference_binned(prediction_val, true_score_val, name):
     plt.close()
 
 def plot_hist(table, parameter, name):
+    print(f"Plot {parameter} histogram")
     table_score = table[table[parameter] == 1].reset_index(drop = True)
     table_score = table_score["predicted score"]
 
@@ -732,12 +739,12 @@ def plot_hist(table, parameter, name):
     parameter = parameter.replace(" ", "")
 
     plt.figure()
-    plt.hist(table_score, bins = 50, label = f"$\mu = {np.round(mean*1e4, 2)} \cdot 10^{{-4}}$ \nmedian $={np.round(median*1e4, 2)} \cdot 10^{{-4}}$ \n$\sigma={np.round(std*1e4, 2)} \cdot 10^{{-4}}$")
+    plt.hist(table_score, bins = 25, range = (-15000, 15000), label = f"$\mu = {np.round(mean, 2)}$ \nmedian $={np.round(median, 2)}$ \n$\sigma={np.round(std, 2)}$")
     plt.xlabel(f"predicted score")
     plt.ylabel("Number of boards")
     # if parameter != "score":
     plt.yscale("log")
-    plt.xlim(-1, 1)
+    # plt.xlim(-1, 1)
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"evaluation/{name}/{parameter}_hist_score_total_{name}.pdf")
