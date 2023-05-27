@@ -62,5 +62,4 @@ plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true
 
 plot_hist(table_pred_val, "seventyfive moves", args.name)
 
-exit()
 save_examples(table_examples, args.name)
