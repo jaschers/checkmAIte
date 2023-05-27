@@ -797,24 +797,24 @@ def save_examples(table, name):
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
         X_parameter = np.array([get_model_input_parameter(board.copy())])
 
-        heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
+        # heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
 
-        # save heatmap
-        plt.figure()
-        plt.matshow(heatmap, cmap = "gnuplot")
-        plt.axis("off")
-        plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
-        plt.close()
+        # # save heatmap
+        # plt.figure()
+        # plt.matshow(heatmap, cmap = "gnuplot")
+        # plt.axis("off")
+        # plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
+        # plt.close()
 
-        plt.figure()
-        img_heatmap = plt.imread(path + "_heatmap.png")
-        img_board = plt.imread(path + ".png")
-        plt.imshow(img_board, interpolation = "nearest")
-        plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
-        plt.axis("off")
-        plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
+        # plt.figure()
+        # img_heatmap = plt.imread(path + "_heatmap.png")
+        # img_board = plt.imread(path + ".png")
+        # plt.imshow(img_board, interpolation = "nearest")
+        # plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
+        # plt.axis("off")
+        # plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
 
-        os.system("rm " + path + "_heatmap.png")
+        # os.system("rm " + path + "_heatmap.png")
 
         plt.close("all")
 
@@ -955,6 +955,30 @@ def get_board_pinned(board):
         if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
             board_index = square_to_index(square)
             board_pinned[board_index[0]][board_index[1]] = 1
+    # board_pinned = board_pinned.tolist()
+
+    return(board_pinned)
+
+def get_board_pinned_new(board):
+    """
+    Returns board of pinned black and white pieces
+
+    Args:
+        board (chess.Board): chess board
+
+    Returns:
+        list (8, 8): list of a board with pinned black and white pieces
+    """
+    number_boards = 2
+    board_pinned = np.zeros((number_boards, 8, 8), dtype = int)
+    for square in chess.SQUARES:
+        if (board.is_pinned(chess.WHITE, square) == True) and (board.color_at(square) == chess.WHITE):
+            board_index = square_to_index(square)
+            board_pinned[0][board_index[0]][board_index[1]] = 1
+        if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
+            board_index = square_to_index(square)
+            board_pinned[1][board_index[0]][board_index[1]] = 1
+
     # board_pinned = board_pinned.tolist()
 
     return(board_pinned)
