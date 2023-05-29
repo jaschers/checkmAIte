@@ -25,14 +25,17 @@ for filename in filenames:
     filename_subid = 0
 
     file = open(filename, "r")
+    num_lines = sum(1 for _ in open(filename))
 
     boards_random_int = []
     boards_random_parameter = []
     boards_random_score = []
 
     count = 0
+    count_total = 0
+
     for line in tqdm(file):
-        if int(filename_id) >= 11 and int(filename_subid) >= 36:
+        if int(filename_id) >= 1 and int(filename_subid) >= 0:
             board_fen, _ = line.split("; ")
             board = chess.Board(board_fen)
 
@@ -41,8 +44,9 @@ for filename in filenames:
             boards_random_score.append(np.int16(board_score(board.copy())))
 
         count += 1
-        if count == 10000:
-            if int(filename_id) >= 11 and int(filename_subid) >= 36:
+        count_total += 1
+        if count == 10000 or count_total == num_lines:
+            if int(filename_id) >= 1 and int(filename_subid) >= 0:
                 boards_random_parameter = np.array(boards_random_parameter)
 
                 df1 = pd.DataFrame({"board3d": boards_random_int})
@@ -66,12 +70,12 @@ for filename in filenames:
 
                 print(table)
 
-                os.makedirs("data/3d/40_8_8_depth0_ms15000_human/", exist_ok = True)
+                os.makedirs("data/3d/32_8_8_depth0_ms15000_human/", exist_ok = True)
 
-                table.to_hdf(f"data/3d/40_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5", key = "table")
-                print(f"save table to data/3d/40_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
+                table.to_hdf(f"data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5", key = "table")
+                print(f"save table to data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
             else:
-                print(f"skip extracting file data/3d/40_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
+                print(f"skip extracting file data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
 
             count = 0
             filename_subid += 1

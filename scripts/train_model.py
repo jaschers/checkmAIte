@@ -25,14 +25,15 @@ Trains the residual neural network
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-r", "--runs", type = int, required = False, metavar = "-", help = "Number of runs used for training")
-parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "40_8_8_depth0_mm100_ms15000", help = "name of the data folder")
+parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
+parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "32_8_8_depth0_mm100_ms15000", help = "name of the data folder")
 parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs='+', metavar = "-", default = None, help = "score cut applied on the data (default: None)")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
 parser.add_argument("-rh", "--read_human", type = str, required = False, metavar = "-", default = "y", help = "Should human data be read? [y/n], default: y")
 parser.add_argument("-rd", "--read_draw", type = str, required = False, metavar = "-", default = "y", help = "Should draw data be read? [y/n], default: y")
+parser.add_argument("-rp", "--read_pinned", type = str, required = False, metavar = "-", default = "y", help = "Should pinned checkmate data be read? [y/n], default: y")
 parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")
-parser.add_argument("-bs", "--batch_size", type = int, required = False, metavar = "-", default = 1024, help = "Batch size used for training")
+parser.add_argument("-bs", "--batch_size", type = int, required = False, metavar = "-", default = 32, help = "Batch size used for training")
 parser.add_argument("-g", "--generator", type = str, required = False, metavar = "-", default = "n", help = "Use of generator for training (required for large data sets and limited RAM)")
 
 args = parser.parse_args()
@@ -42,7 +43,7 @@ args = parser.parse_args()
 print("Memory usage before loading data:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
 
 if args.generator == "n":
-    X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut, args.read_human, args.read_draw)
+    X_board3d, X_parameter, Y = load_data(args.runs, args.name_data, args.score_cut, args.read_human, args.read_draw, args.read_pinned)
 
     # X_board3d = np.concatenate((X_board3d[:,:24], X_board3d[:,36:]), axis = 1)
 
@@ -75,7 +76,7 @@ elif args.generator == "y":
     # load data
     print("in elif args.generator")
     table_dd = dd.read_hdf(os.path.join("data", "3d", args.name_data, "data45*.h5"), key = "table")
-    # table_dd = dd.read_hdf("data/3d/40_8_8_depth0_mm100_ms15000_dd/data0.h5", key = "table")
+    # table_dd = dd.read_hdf("data/3d/32_8_8_depth0_mm100_ms15000_dd/data0.h5", key = "table")
 
     # chunksize = args.batch_size * 1
 

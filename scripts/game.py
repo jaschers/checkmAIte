@@ -59,7 +59,7 @@ class ChessApp:
         self.button.pack()
         self.draw_board()
 
-        self.model = models.load_model("model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5") # model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5
+        self.model = models.load_model("model/model_32_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5") # model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5
 
         # initialsie transportation table
         self.transposition_table = {}

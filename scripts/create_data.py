@@ -11,9 +11,9 @@ np.set_printoptions(threshold=sys.maxsize)
 # set stockfish depth
 # set stockfish skill level
 # set stockfish time limit
-number_runs = 100 # 60
+number_runs = 500 # 60
 for run in range(number_runs):
-    run = run + 0
+    run = run + 46
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
     boards_random_int, boards_random_parameter, boards_random_score = boards_random(num_boards = 10000) #10000
@@ -43,8 +43,8 @@ for run in range(number_runs):
     print(np.shape(table["board3d"][0]))
     # print(np.array(table["board3d (int)"][0]))
 
-    os.makedirs("data/3d/40_8_8_depth0_mm100_ms15000_dd/", exist_ok = True)
+    os.makedirs("data/3d/32_8_8_depth0_mm100_ms15000/", exist_ok = True)
 
-    table.to_hdf(f"data/3d/40_8_8_depth0_mm100_ms15000_dd/data{run}.h5", key = "table")
+    table.to_hdf(f"data/3d/32_8_8_depth0_mm100_ms15000/data{run}.h5", key = "table")
 
     end = time.time()
