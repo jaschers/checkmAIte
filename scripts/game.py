@@ -54,7 +54,8 @@ class ChessApp:
 
         # Draw initial chess board
         self.board = chess.Board()
-        # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 69")
+        # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 5")
+        # self.board = chess.Board("8/8/8/5K2/8/8/4kp1Q/8 w - - 0 4")
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()

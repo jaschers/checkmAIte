@@ -340,11 +340,22 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 return entry["eval"], entry["best_move"]
 
     if depth == 0 or board.is_game_over() or repetition:
+        if repetition:
+            print("repetition")
         prediction = ai_board_score_pred(board.copy(), model)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
+        # if board.is_game_over():
+        #     print(board)
+        #     print(board.fen())
+        #     print(np.array(get_board_total(board.copy())))
+        #     print(np.shape(get_board_total(board.copy())))
+        #     print(np.array(get_model_input_parameter(board.copy())))
+        #     print(np.shape(get_model_input_parameter(board.copy())))
+        #     print("prediction", prediction)
+        #     print("game over")
         return(prediction, None)
 
     if maximizing_player:
@@ -360,6 +371,8 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
+                if depth == 3:
+                    print("best move", best_move, "max_eval", max_eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
                 break
