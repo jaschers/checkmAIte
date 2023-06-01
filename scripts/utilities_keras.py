@@ -123,8 +123,8 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw, read_pinned
 
     print(f"Memory usage after loading all runs:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
     X_board3d = np.array(table["board3d"].values.tolist(), dtype = np.int8)
-    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist(), dtype = np.int8)
-    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist(), dtype = np.int16)
+    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black", "check", "checkmate", "stalemate"]].values.tolist(), dtype = np.int8)
+    Y = np.array(table[["score"]].values.tolist(), dtype = np.int16)
     print(f"Memory usage after converting data to numpy arrays", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
 
     return(X_board3d, X_parameter, Y)
