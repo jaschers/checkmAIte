@@ -1330,17 +1330,45 @@ def get_board_total(board):
     board_total = board_total.tolist()
     return(board_total)
 
+# def get_model_input_parameter(board):
+#     """
+#     Returns neural network input parameters from a given board.
+
+#     Args:
+#         board (chess.Board): chess board
+    
+#     Returns:
+#         tuple: (10,) of:
+#             bool: side to move (True = white, False = black)
+#             int: halfmove clock number
+#             bool: checks if white has insufficient winning material
+#             bool: checks if black has insufficient winning material
+#             bool: checks seventy-five-move rule
+#             bool: checks fivefold repetition
+#             bool: checks castling right king side of white
+#             bool: checks castling right queen side of white
+#             bool: checks castling right king side of black
+#             bool: checks castling right queen side of black
+#     """
+#     X_parameter = get_board_parameters(board.copy())
+#     # X_parameter = X_parameter[:2] + X_parameter[6:]
+#     X_parameter = np.delete(X_parameter, 2)
+#     return(X_parameter)
+
 def get_model_input_parameter(board):
     """
-    Returns neural network input parameters from a given board.
+    Returns model input parameters from a given board.
 
     Args:
         board (chess.Board): chess board
     
     Returns:
-        tuple: (10,) of:
+        tuple: (13,) of:
             bool: side to move (True = white, False = black)
             int: halfmove clock number
+            bool: checks if the current side to move is in check
+            bool: checks if the current side to move is in checkmate
+            bool: checks if the current side to move is in stalemate
             bool: checks if white has insufficient winning material
             bool: checks if black has insufficient winning material
             bool: checks seventy-five-move rule
@@ -1350,10 +1378,37 @@ def get_model_input_parameter(board):
             bool: checks castling right king side of black
             bool: checks castling right queen side of black
     """
-    X_parameter = get_board_parameters(board.copy())
-    X_parameter = X_parameter[:2] + X_parameter[6:]
-    return(X_parameter)
 
+    turn = board.turn
+    halfmove_clock = board.halfmove_clock
+    check = board.is_check()
+    checkmate = board.is_checkmate()
+    stalemate = board.is_stalemate()
+    insufficient_material_white = board.has_insufficient_material(chess.WHITE)
+    insufficient_material_black = board.has_insufficient_material(chess.BLACK)
+    seventyfive_moves = board.is_seventyfive_moves()
+    fivefold_repetition = board.is_fivefold_repetition()
+    # threefold_repetition = board.is_repetition()
+    castling_right_king_side_white = board.has_kingside_castling_rights(chess.WHITE)
+    castling_right_queen_side_white = board.has_queenside_castling_rights(chess.WHITE)
+    castling_right_king_side_black = board.has_kingside_castling_rights(chess.BLACK)
+    castling_right_queen_side_black = board.has_queenside_castling_rights(chess.BLACK)
+
+    return(
+        turn,
+        halfmove_clock, 
+        insufficient_material_white, 
+        insufficient_material_black, 
+        seventyfive_moves, 
+        fivefold_repetition, 
+        castling_right_king_side_white, 
+        castling_right_queen_side_white, 
+        castling_right_king_side_black, 
+        castling_right_queen_side_black,
+        check, 
+        checkmate, 
+        stalemate
+        )
 
 def setup_logging(dt_string):
     """
