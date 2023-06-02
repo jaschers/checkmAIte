@@ -10,7 +10,7 @@ import argparse
 from utilities import *
 from datetime import datetime
 import psutil
-
+from playsound import playsound
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(description=script_descr)
 parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-", help = "Depth of the minimax algorithm")
 parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
 parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
+parser.add_argument("-f", "--flipped", type = int, metavar = "-", default = 0, help = "Flip board 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -53,13 +54,14 @@ class ChessApp:
 
         # Draw initial chess board
         self.board = chess.Board()
-        # self.board = chess.Board("rn2k2r/pp3ppp/1qpbpn2/1B1pN3/3P2b1/2P1P2P/PP3PP1/RNBQK2R w KQkq - 3 8")
+        # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 5")
+        # self.board = chess.Board("8/8/8/5K2/8/8/4kp1Q/8 w - - 0 4")
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
         self.draw_board()
 
-        self.model = models.load_model("model/model_32_8_8_depth0_mm100_ms15000_ResNet512o1_sc9000-14000_r150_rh150_rd9_rp50_exp1.h5") # model/model_34_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r150_exp3.h5
+        self.model = models.load_model("model/model_32_8_8_depth0_mm100_ms15000_ResNet512o1_sc9000-14000_r150_rh150_rd9_rp50_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
 
         # initialsie transportation table
         self.transposition_table = {}
@@ -86,8 +88,10 @@ class ChessApp:
             self (ChessApp): An instance of ChessApp.
         """
         # Create SVG image of chess board using chess.svg.board module
-        # svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
-        svg_board = chess.svg.board(self.board).encode("utf-8")
+        if args.flipped == 1:
+            svg_board = chess.svg.board(self.board, flipped=True).encode("utf-8")
+        else:
+            svg_board = chess.svg.board(self.board).encode("utf-8")
 
         # Convert SVG to PNG image using cairosvg library
         png_data = cairosvg.svg2png(bytestring=svg_board)
@@ -111,8 +115,10 @@ class ChessApp:
         # consider 15x15 border of the board
         col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
         row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-        square = chess.square(col, 7 - row) # if board is flipped
-        # square = chess.square(7 - col, row)
+        if args.flipped == 1:
+            square = chess.square(7 - col, row)
+        else:
+            square = chess.square(col, 7 - row)
 
         # Get the piece that is on the clicked square
         piece = self.board.piece_at(square)
@@ -133,8 +139,10 @@ class ChessApp:
             # Get the square that was released on
             col = int((event.x - self.width_border) / (self.true_width / 8)) # 400 (chess board width) / 8 (number of squares be col)
             row = int((event.y - self.height_border) / (self.true_width / 8)) # 400 (chess board height) / 8 (number of squares be row)
-            self.release_square = chess.square(col, 7 - row) # if board is flipped
-            # self.release_square = chess.square(7 - col, row)
+            if args.flipped == 1:
+                self.release_square = chess.square(7 - col, row)
+            else:
+                self.release_square = chess.square(col, 7 - row)
 
             # Attempt to make the move
             self.move = chess.Move(self.selected_square, self.release_square)
@@ -143,15 +151,16 @@ class ChessApp:
             if self.move in self.board.legal_moves:
                 self.board.push(self.move)
                 self.draw_board()
-                self.check_game_over()
+                playsound('sounds/move-self.mp3')
+
 
                 if args.save == 1:
                     save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
                     self.board_counter += 1
 
+                self.check_game_over()
                 self.ai_move()
-            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55):
-                print(self.selected_square, self.release_square)
+            elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55) and (self.board.is_check() == False):
                 self.text = tk.Text(self.master, height = 1, width = 2)
                 self.text.pack()
                 self.button = tk.Button(self.master, text="Enter promotion piece (q/r/k/b)", command=self.promotion)
@@ -192,6 +201,13 @@ class ChessApp:
             self.move = chess.Move.from_uci(move_uci)
             self.board.push(self.move)
             self.draw_board()
+            playsound('sounds/move-self.mp3')
+
+            if args.save == 1:
+                save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+                self.board_counter += 1
+
+            self.check_game_over()
             self.button.pack_forget()
             self.text.pack_forget()
             self.ai_move()
@@ -255,6 +271,7 @@ class ChessApp:
             self.logger.info("AI move: %s", best_move_ai)
 
         self.draw_board()
+        playsound("sounds/move-self.mp3")
 
         self.logger.info("--------------------------------------------------------------------------")
         self.check_game_over()
