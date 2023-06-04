@@ -300,7 +300,7 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
         return(min_eval)
 
 
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, best_move = None, verbose_minimax = False):
     """
     Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
@@ -323,7 +323,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
 
     # # Check if this position is already in the transposition table
     hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
-    if hash_value in transposition_table:
+    if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
         entry = transposition_table[hash_value]
         # print("hash_value", hash_value)
         # print("transposition_table[hash_value]", transposition_table[hash_value])
@@ -339,12 +339,23 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             if alpha >= beta:
                 return entry["eval"], entry["best_move"]
 
-    if depth == 0 or board.is_game_over():
+    if depth == 0 or board.is_game_over() or repetition:
+        if repetition:
+            print("repetition")
         prediction = ai_board_score_pred(board.copy(), model)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
+        # if board.is_game_over():
+        #     print(board)
+        #     print(board.fen())
+        #     print(np.array(get_board_total(board.copy())))
+        #     print(np.shape(get_board_total(board.copy())))
+        #     print(np.array(get_model_input_parameter(board.copy())))
+        #     print(np.shape(get_model_input_parameter(board.copy())))
+        #     print("prediction", prediction)
+        #     print("game over")
         return(prediction, None)
 
     if maximizing_player:
@@ -354,14 +365,16 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, best_move, verbose_minimax = False)
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, best_move, verbose_minimax = False)
             board.pop()
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
+                if depth == 3:
+                    print("best move", best_move, "max_eval", max_eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
-                ("alpha-beta pruning")
                 break
 
         # Add the current game state and its evaluation to the transposition table
@@ -393,14 +406,14 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         ordered_moves = order_moves(board, transposition_table)
         for move in ordered_moves:
             board.push(move)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, best_move, verbose_minimax = False)
             board.pop()
             if eval < min_eval:
                 min_eval = eval
                 best_move = move
             beta = min(beta, eval)
             if beta <= alpha:
-                ("alpha-beta pruning")
                 break
 
         # Store the evaluation, best move, and flag in the transposition table
@@ -428,7 +441,8 @@ def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
         chess.Move: best move
         float: evaluation of the board
     """
-    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, best_move = None, verbose_minimax = verbose_minimax)
+    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
+    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, best_move = None, verbose_minimax = verbose_minimax)
 
     return(max_move, max_eval)
 
@@ -940,6 +954,25 @@ def get_board_parameters(board):
         castling_right_queen_side_black
         )
 
+# def get_board_pinned(board):
+#     """
+#     Returns board of pinned black and white pieces
+
+#     Args:
+#         board (chess.Board): chess board
+
+#     Returns:
+#         list (8, 8): list of a board with pinned black and white pieces
+#     """
+#     board_pinned = np.zeros((8, 8), dtype = int)
+#     for square in chess.SQUARES:
+#         if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
+#             board_index = square_to_index(square)
+#             board_pinned[board_index[0]][board_index[1]] = 1
+#     # board_pinned = board_pinned.tolist()
+
+#     return(board_pinned)
+
 def get_board_pinned(board):
     """
     Returns board of pinned black and white pieces
@@ -948,36 +981,23 @@ def get_board_pinned(board):
         board (chess.Board): chess board
 
     Returns:
-        list (8, 8): list of a board with pinned black and white pieces
+        list (4, 8, 8): list of a board with pinned black and white pieces
     """
-    board_pinned = np.zeros((8, 8), dtype = int)
-    for square in chess.SQUARES:
-        if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
-            board_index = square_to_index(square)
-            board_pinned[board_index[0]][board_index[1]] = 1
-    # board_pinned = board_pinned.tolist()
-
-    return(board_pinned)
-
-def get_board_pinned_new(board):
-    """
-    Returns board of pinned black and white pieces
-
-    Args:
-        board (chess.Board): chess board
-
-    Returns:
-        list (8, 8): list of a board with pinned black and white pieces
-    """
-    number_boards = 2
+    number_boards = 4
     board_pinned = np.zeros((number_boards, 8, 8), dtype = int)
     for square in chess.SQUARES:
         if (board.is_pinned(chess.WHITE, square) == True) and (board.color_at(square) == chess.WHITE):
             board_index = square_to_index(square)
             board_pinned[0][board_index[0]][board_index[1]] = 1
-        if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
+        if board.is_pinned(chess.WHITE, square) == True:
             board_index = square_to_index(square)
             board_pinned[1][board_index[0]][board_index[1]] = 1
+        if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
+            board_index = square_to_index(square)
+            board_pinned[2][board_index[0]][board_index[1]] = 1
+        if board.is_pinned(chess.BLACK, square) == True:
+            board_index = square_to_index(square)
+            board_pinned[3][board_index[0]][board_index[1]] = 1
 
     # board_pinned = board_pinned.tolist()
 
@@ -993,10 +1013,15 @@ def get_board_en_passant(board):
     Returns:
         list (8, 8): list of a board with square that can be attacked by en passant move
     """
-    board_en_passant = np.zeros((8, 8), dtype = int)
+    number_boards = 2
+    board_en_passant = np.zeros((number_boards, 8, 8), dtype = int)
     if board.has_legal_en_passant() == True:
-        board_index = square_to_index(board.ep_square)
-        board_en_passant[board_index[0]][board_index[1]] = 1
+        if board.turn == chess.WHITE:
+            board_index = square_to_index(board.ep_square)
+            board_en_passant[0][board_index[0]][board_index[1]] = 1
+        else:
+            board_index = square_to_index(board.ep_square)
+            board_en_passant[1][board_index[0]][board_index[1]] = 1
     # board_en_passant = board_en_passant.tolist()
 
     return(board_en_passant)
@@ -1262,7 +1287,7 @@ def get_board_3d_pawn_move(board):
 
 def get_board_total(board):
     """
-    converts chess board into 3D (40, 8, 8) list with board[i] representing:
+    converts chess board into 3D (32, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1287,40 +1312,30 @@ def get_board_total(board):
     21: all squares being attacked/defended by black rook
     22: all squares being attacked/defended by black queen
     23: all squares being attacked/defended by black king
-    24: all squares being potentially attacked/defended in the next move by white pawn
-    25: all squares being potentially attacked/defended in the next move by white knight
-    26: all squares being potentially attacked/defended in the next move by white bishop
-    27: all squares being potentially attacked/defended in the next move by white rook
-    28: all squares being potentially attacked/defended in the next move by white queen
-    29: all squares being potentially attacked/defended in the next move by white king
-    30: all squares being potentially attacked/defended in the next move by black pawn
-    31: all squares being potentially attacked/defended in the next move by black knight
-    32: all squares being potentially attacked/defended in the next move by black bishop
-    33: all squares being potentially attacked/defended in the next move by black rook
-    34: all squares being potentially attacked/defended in the next move by black queen
-    35: all squares being potentially attacked/defended in the next move by black king
-    36: all squares being a potential move by white pawns
-    37: all squares being a potential move by black pawns
-    38: all squares being pinned by black or white
-    39: all squares being possible en passant moves
+    24: all squares being a potential move by white pawns
+    25: all squares being a potential move by black pawns
+    26: all squares being pinned by white with a white piece or pawn on that square
+    27: all squares being pinned by white
+    28: all squares being pinned by black with a black piece or pawn on that square
+    29: all squares being pinned by black
+    30: all squares being possible en passant moves for white
+    31: all squares being possible en passant moves for black
 
     Args:
         board (chess.Board): chess board
 
     Returns:
-        list: (40, 8, 8) list of the input board
+        list: (32, 8, 8) list of the input board
     """
     board_pieces = get_board_3d_pieces(board.copy())
     board_pawn_move = get_board_3d_pawn_move(board.copy())
-    board_pinned = np.array([get_board_pinned(board.copy())])
-    board_en_passant = np.array([get_board_en_passant(board.copy())])
+    board_pinned = get_board_pinned(board.copy())
+    board_en_passant = get_board_en_passant(board.copy())
     board_attacks = get_board_3d_attacks(board.copy())
-    board_2nd_attacks = get_board_3d_2nd_attacks(board.copy())
 
     board_total = np.concatenate(
         (board_pieces,
         board_attacks,
-        board_2nd_attacks,
         board_pawn_move,
         board_pinned,
         board_en_passant)
@@ -1329,17 +1344,45 @@ def get_board_total(board):
     board_total = board_total.tolist()
     return(board_total)
 
+# def get_model_input_parameter(board):
+#     """
+#     Returns neural network input parameters from a given board.
+
+#     Args:
+#         board (chess.Board): chess board
+    
+#     Returns:
+#         tuple: (10,) of:
+#             bool: side to move (True = white, False = black)
+#             int: halfmove clock number
+#             bool: checks if white has insufficient winning material
+#             bool: checks if black has insufficient winning material
+#             bool: checks seventy-five-move rule
+#             bool: checks fivefold repetition
+#             bool: checks castling right king side of white
+#             bool: checks castling right queen side of white
+#             bool: checks castling right king side of black
+#             bool: checks castling right queen side of black
+#     """
+#     X_parameter = get_board_parameters(board.copy())
+#     # X_parameter = X_parameter[:2] + X_parameter[6:]
+#     X_parameter = np.delete(X_parameter, 2)
+#     return(X_parameter)
+
 def get_model_input_parameter(board):
     """
-    Returns neural network input parameters from a given board.
+    Returns model input parameters from a given board.
 
     Args:
         board (chess.Board): chess board
     
     Returns:
-        tuple: (10,) of:
+        tuple: (13,) of:
             bool: side to move (True = white, False = black)
             int: halfmove clock number
+            bool: checks if the current side to move is in check
+            bool: checks if the current side to move is in checkmate
+            bool: checks if the current side to move is in stalemate
             bool: checks if white has insufficient winning material
             bool: checks if black has insufficient winning material
             bool: checks seventy-five-move rule
@@ -1349,10 +1392,37 @@ def get_model_input_parameter(board):
             bool: checks castling right king side of black
             bool: checks castling right queen side of black
     """
-    X_parameter = get_board_parameters(board.copy())
-    X_parameter = X_parameter[:2] + X_parameter[6:]
-    return(X_parameter)
 
+    turn = board.turn
+    halfmove_clock = board.halfmove_clock
+    check = board.is_check()
+    checkmate = board.is_checkmate()
+    stalemate = board.is_stalemate()
+    insufficient_material_white = board.has_insufficient_material(chess.WHITE)
+    insufficient_material_black = board.has_insufficient_material(chess.BLACK)
+    seventyfive_moves = board.is_seventyfive_moves()
+    fivefold_repetition = board.is_fivefold_repetition()
+    # threefold_repetition = board.is_repetition()
+    castling_right_king_side_white = board.has_kingside_castling_rights(chess.WHITE)
+    castling_right_queen_side_white = board.has_queenside_castling_rights(chess.WHITE)
+    castling_right_king_side_black = board.has_kingside_castling_rights(chess.BLACK)
+    castling_right_queen_side_black = board.has_queenside_castling_rights(chess.BLACK)
+
+    return(
+        turn,
+        halfmove_clock, 
+        insufficient_material_white, 
+        insufficient_material_black, 
+        seventyfive_moves, 
+        fivefold_repetition, 
+        castling_right_king_side_white, 
+        castling_right_queen_side_white, 
+        castling_right_king_side_black, 
+        castling_right_queen_side_black,
+        check, 
+        checkmate, 
+        stalemate
+        )
 
 def setup_logging(dt_string):
     """

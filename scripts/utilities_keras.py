@@ -39,7 +39,7 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
     
     return out
 
-def load_data(num_runs, name_data, score_cut, read_human, read_draw):
+def load_data(num_runs, name_data, score_cut, read_human, read_draw, read_pinned):
     # load data
     table = pd.DataFrame()
     for run in range(num_runs):
@@ -54,7 +54,7 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw):
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
     if read_human == "y":
-        dir_human = "data/3d/40_8_8_depth0_ms15000_human/"
+        dir_human = "data/3d/32_8_8_depth0_ms15000_human/"
         filenames = glob.glob(dir_human + "*")
         filenames = np.sort(filenames)
 
@@ -69,7 +69,7 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw):
             print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
 
     if read_draw == "y":
-        dir_draw = "data/3d/40_8_8_draw/"
+        dir_draw = "data/3d/32_8_8_draw/"
         filenames = glob.glob(dir_draw + "*")
         filenames = np.sort(filenames)
 
@@ -79,6 +79,21 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw):
             table_draw = pd.read_hdf(filename, key = "table")
             middle = time.time()
             frame = [table, table_draw]
+            table = pd.concat(frame)
+            print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
+            print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
+    
+    if read_pinned == "y":
+        dir_pinned = "data/3d/32_8_8_pinned_checkmate/"
+        filenames = glob.glob(dir_pinned + "*")
+        filenames = np.sort(filenames)
+
+        for filename in filenames:
+            print(f"Loading file {filename}...")
+            start = time.time()
+            table_pinned = pd.read_hdf(filename, key = "table")
+            middle = time.time()
+            frame = [table, table_pinned]
             table = pd.concat(frame)
             print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
             print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
@@ -108,8 +123,8 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw):
 
     print(f"Memory usage after loading all runs:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
     X_board3d = np.array(table["board3d"].values.tolist(), dtype = np.int8)
-    X_parameter = np.array(table[["player move", "halfmove clock", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist(), dtype = np.int8)
-    Y = np.array(table[["score", "check", "checkmate", "stalemate"]].values.tolist(), dtype = np.int16)
+    X_parameter = np.array(table[["player move", "halfmove clock", "check", "checkmate", "stalemate", "insufficient material white", "insufficient material black", "seventyfive moves", "fivefold repetition", "castling right queen side white", "castling right king side white", "castling right queen side black", "castling right king side black"]].values.tolist(), dtype = np.int8)
+    Y = np.array(table[["score"]].values.tolist(), dtype = np.int16)
     print(f"Memory usage after converting data to numpy arrays", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
 
     return(X_board3d, X_parameter, Y)

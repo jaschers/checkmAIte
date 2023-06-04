@@ -24,28 +24,25 @@ def boards_pinned_checkmate(num_boards):
 
     for _ in tqdm(range(num_boards)):
         board = chess.Board() #"rnbqk1nr/pppp1ppp/8/4p3/1b1P4/2N5/PPP1PPPP/R1BQKBNR w KQkq - 1 3" #"2r3nr/1p2pp2/3k3b/p6p/P1BPp1pP/1qK2P2/bB4PN/RN3QR1 w - - 0 1"
-        board_pinned = get_board_pinned_new(board.copy())
-        board_pinned_white, board_pinned_black = board_pinned[0], board_pinned[1]
+        board_pinned = get_board_pinned(board.copy())
+        board_pinned_white, board_pinned_black = board_pinned[0], board_pinned[2]
         pinned_white = 1 in board_pinned_white
         pinned_black = 1 in board_pinned_black
         count = 0
         while not (board.is_checkmate() and ((pinned_white and board.turn == chess.WHITE) or (pinned_black and board.turn == chess.BLACK))):
-            if count % 5000 == 0:
-                print(count)
+            # if count % 5000 == 0:
+            #     print(count)
             if not board.is_game_over():
                 move = random.choice(list(board.legal_moves))
                 board.push(move)
-                board_pinned = get_board_pinned_new(board.copy())
-                board_pinned_white, board_pinned_black = board_pinned[0], board_pinned[1]
+                board_pinned = get_board_pinned(board.copy())
+                board_pinned_white, board_pinned_black = board_pinned[0], board_pinned[2]
                 pinned_white = 1 in board_pinned_white
                 pinned_black = 1 in board_pinned_black
                 # if pinned:
                 #     print("pinned")
                 count += 1
             if (board.is_checkmate() and ((pinned_white and board.turn == chess.WHITE) or (pinned_black and board.turn == chess.BLACK))):
-                print(board)
-                print(board.fen())
-                print(board_pinned)
                 boards_pinned_checkmate_int.append(get_board_total(board.copy()))
                 boards_pinned_checkmate_parameter.append(get_board_parameters(board.copy()))
                 boards_pinned_checkmate_score.append(np.int16(board_score(board.copy())))
@@ -56,12 +53,13 @@ def boards_pinned_checkmate(num_boards):
 
     return(boards_pinned_checkmate_int, boards_pinned_checkmate_parameter, boards_pinned_checkmate_score)
 
-dir_pinned_checkmate = "data/3d/40_8_8_pinned_checkmate/"
+dir_pinned_checkmate = "data/3d/32_8_8_pinned_checkmate/"
 os.makedirs(dir_pinned_checkmate, exist_ok = True)
 
-number_runs = 3
+number_runs = 100
 for run in range(number_runs):
-    boards_pinned_checkmate_int, boards_pinned_checkmate_parameter, boards_pinned_checkmate_score = boards_pinned_checkmate(num_boards = 10000)
+    run = run + 10
+    boards_pinned_checkmate_int, boards_pinned_checkmate_parameter, boards_pinned_checkmate_score = boards_pinned_checkmate(num_boards = 100)
 
     df1 = pd.DataFrame({"board3d": boards_pinned_checkmate_int})
     df2 = pd.DataFrame({"player move": boards_pinned_checkmate_parameter[:,0]})
