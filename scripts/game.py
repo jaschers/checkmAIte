@@ -60,6 +60,7 @@ class ChessApp:
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
         self.draw_board()
+        playsound("sounds/start.m4a")
 
         self.model = models.load_model("model/model_32_8_8_depth0_mm100_ms15000_ResNet512o1_sc9000-14000_r150_rh150_rd9_rp50_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
 
@@ -151,7 +152,8 @@ class ChessApp:
             if self.move in self.board.legal_moves:
                 self.board.push(self.move)
                 self.draw_board()
-                playsound('sounds/move-self.mp3')
+                self.play_sound(board = self.board, move = self.move)
+                
 
 
                 if args.save == 1:
@@ -201,7 +203,8 @@ class ChessApp:
             self.move = chess.Move.from_uci(move_uci)
             self.board.push(self.move)
             self.draw_board()
-            playsound('sounds/move-self.mp3')
+            self.play_sound(board = self.board, move = self.move)
+            
 
             if args.save == 1:
                 save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
@@ -271,7 +274,8 @@ class ChessApp:
             self.logger.info("AI move: %s", best_move_ai)
 
         self.draw_board()
-        playsound("sounds/move-self.mp3")
+        self.play_sound(board = self.board, move = best_move_ai)
+        
 
         self.logger.info("--------------------------------------------------------------------------")
         self.check_game_over()
@@ -314,6 +318,23 @@ class ChessApp:
                 save_board_gif(boards_png = boards_png, game_name = self.dt_string)
 
             exit()
+    
+    def play_sound(self, board, move):
+        board_current = self.board.copy()
+        board_previous = self.board.copy()
+        board_previous.pop()
+
+        if board_current.is_checkmate() or board_current.is_stalemate() or board_current.can_claim_draw():
+                playsound("sounds/end.m4a")
+        elif board_current.is_check():
+            playsound("sounds/check.mp3")
+        elif board_previous.is_capture(move):
+            playsound("sounds/capture.mp3")
+        elif board_previous.is_castling(move):
+            playsound("sounds/castle.mp3")
+        else:
+            playsound("sounds/move.mp3")
+        
 
 def main():
     # Create GUI and start event loop
