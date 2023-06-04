@@ -26,10 +26,10 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-r", "--runs", type = int, required = True, metavar = "-", help = "Number of runs used for training")
-parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "32_8_8_depth0_mm100_ms15000", help = "name of the data folder")
+parser.add_argument("-nd", "--name_data", type = str, required = False, metavar = "-", default = "30_8_8_depth0_mm100_ms15000", help = "name of the data folder")
 parser.add_argument("-sc", "--score_cut", type = float, required = False, nargs='+', metavar = "-", default = None, help = "score cut applied on the data (default: None)")
 parser.add_argument("-ne", "--name_experiment", type = str, required = True, metavar = "-", help = "Name of this particular experiment")
-parser.add_argument("-rh", "--read_human", type = str, required = False, metavar = "-", default = "y", help = "Should human data be read? [y/n], default: y")
+parser.add_argument("-rh", "--read_human", type = int, required = True, metavar = "-", help = "Number of human data runs used for training")
 parser.add_argument("-rd", "--read_draw", type = str, required = False, metavar = "-", default = "y", help = "Should draw data be read? [y/n], default: y")
 parser.add_argument("-rp", "--read_pinned", type = str, required = False, metavar = "-", default = "y", help = "Should pinned checkmate data be read? [y/n], default: y")
 parser.add_argument("-e", "--epochs", type = int, required = False, metavar = "-", default = 1000, help = "Number of epochs for the training")
@@ -76,7 +76,7 @@ elif args.generator == "y":
     # load data
     print("in elif args.generator")
     table_dd = dd.read_hdf(os.path.join("data", "3d", args.name_data, "data45*.h5"), key = "table")
-    # table_dd = dd.read_hdf("data/3d/32_8_8_depth0_mm100_ms15000_dd/data0.h5", key = "table")
+    # table_dd = dd.read_hdf("data/3d/30_8_8_depth0_mm100_ms15000_dd/data0.h5", key = "table")
 
     # chunksize = args.batch_size * 1
 
@@ -264,7 +264,7 @@ checkpointer = ModelCheckpoint(filepath = f"model/model_{args.name_experiment}.h
 os.makedirs("history/", exist_ok = True)
 
 if args.generator == "n":
-    model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = args.batch_size, validation_data = ([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 20, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 40, min_delta = 1e-7)], verbose = 2)
+    model.fit([X_board3d_train, X_parameter_train], Y_train, epochs = args.epochs, batch_size = args.batch_size, validation_data = ([X_board3d_val, X_parameter_val], Y_val), callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 15, factor = 0.5, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 30, min_delta = 1e-7)], verbose = 2)
 elif args.generator == "y":
     # model.fit(dask_data_generator(X_board3d_train, X_parameter_train, Y_train, train_size, batch_size), steps_per_epoch = steps_per_epoch[0], epochs = args.epochs, validation_data = dask_data_generator(X_board3d_val, X_parameter_val, Y_val, val_size, batch_size), validation_steps = steps_per_epoch[1], callbacks = [checkpointer, CSVLogger(f"history/history_{args.name_experiment}.csv"), ReduceLROnPlateau(monitor = "val_loss", patience = 20, min_delta = 1e-7), EarlyStopping(monitor = "val_loss", patience = 40, min_delta = 1e-7)], verbose = 1)
     model.fit(dask_data_generator(X_board3d_train, X_parameter_train, Y_train, train_size, batch_size), steps_per_epoch = steps_per_epoch[0], epochs = args.epochs, validation_data = dask_data_generator(X_board3d_val, X_parameter_val, Y_val, val_size, batch_size), validation_steps = steps_per_epoch[1], verbose = 1)

@@ -34,12 +34,16 @@ table_pred_val["true score"] = table_pred_val["true score"] - max_score
 print(np.shape(table_examples["board3d"][0]))
 
 print(table_pred_val)
-print("Number of check boards:", len(np.where(table_pred_val["true check"] == 1)[0]))
-print("Number of checkmate boards:", len(np.where(table_pred_val["true checkmate"] == 1)[0]))
-print("Number of stalemate boards:", len(np.where(table_pred_val["true stalemate"] == 1)[0]))
+# print("Number of check boards:", len(np.where(table_pred_val["true check"] == 1)[0]))
+# print("Number of checkmate boards:", len(np.where(table_pred_val["true checkmate"] == 1)[0]))
+# print("Number of stalemate boards:", len(np.where(table_pred_val["true stalemate"] == 1)[0]))
 
-prediction_val = table_pred_val[["predicted score", "predicted check", "predicted checkmate", "predicted stalemate"]]
-true_val = table_pred_val[["true score", "true check", "true checkmate", "true stalemate"]]
+# prediction_val = table_pred_val[["predicted score", "predicted check", "predicted checkmate", "predicted stalemate"]]
+# true_val = table_pred_val[["true score", "true check", "true checkmate", "true stalemate"]]
+
+prediction_val = table_pred_val[["predicted score"]]
+true_val = table_pred_val[["true score"]]
+
 
 history = pd.read_csv(f"history/history_{args.name}.csv")
 
@@ -52,13 +56,13 @@ plot_2d_scattering(prediction_val["predicted score"], true_val["true score"], ar
 
 plot_hist_difference_total(prediction_val["predicted score"], true_val["true score"], "score", args.name)
 
-plot_hist_difference_binned(prediction_val["predicted score"], true_val["true score"], args.name)
+# plot_hist_difference_binned(prediction_val["predicted score"], true_val["true score"], args.name)
 
-plot_hist_difference_total(prediction_val["predicted check"], true_val["true check"], "check", args.name)
+# plot_hist_difference_total(prediction_val["predicted check"], true_val["true check"], "check", args.name)
 
-plot_hist_difference_total(prediction_val["predicted checkmate"], true_val["true checkmate"], "checkmate", args.name)
+# plot_hist_difference_total(prediction_val["predicted checkmate"], true_val["true checkmate"], "checkmate", args.name)
 
-plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true stalemate"], "stalemate", args.name)
+# plot_hist_difference_total(prediction_val["predicted stalemate"], true_val["true stalemate"], "stalemate", args.name)
 
 plot_hist(table_pred_val, "seventyfive moves", args.name)
 

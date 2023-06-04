@@ -954,24 +954,6 @@ def get_board_parameters(board):
         castling_right_queen_side_black
         )
 
-# def get_board_pinned(board):
-#     """
-#     Returns board of pinned black and white pieces
-
-#     Args:
-#         board (chess.Board): chess board
-
-#     Returns:
-#         list (8, 8): list of a board with pinned black and white pieces
-#     """
-#     board_pinned = np.zeros((8, 8), dtype = int)
-#     for square in chess.SQUARES:
-#         if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
-#             board_index = square_to_index(square)
-#             board_pinned[board_index[0]][board_index[1]] = 1
-#     # board_pinned = board_pinned.tolist()
-
-#     return(board_pinned)
 
 def get_board_pinned(board):
     """
@@ -983,21 +965,21 @@ def get_board_pinned(board):
     Returns:
         list (4, 8, 8): list of a board with pinned black and white pieces
     """
-    number_boards = 4
+    number_boards = 2
     board_pinned = np.zeros((number_boards, 8, 8), dtype = int)
     for square in chess.SQUARES:
         if (board.is_pinned(chess.WHITE, square) == True) and (board.color_at(square) == chess.WHITE):
             board_index = square_to_index(square)
             board_pinned[0][board_index[0]][board_index[1]] = 1
-        if board.is_pinned(chess.WHITE, square) == True:
-            board_index = square_to_index(square)
-            board_pinned[1][board_index[0]][board_index[1]] = 1
+        # if board.is_pinned(chess.WHITE, square) == True:
+        #     board_index = square_to_index(square)
+        #     board_pinned[1][board_index[0]][board_index[1]] = 1
         if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
             board_index = square_to_index(square)
-            board_pinned[2][board_index[0]][board_index[1]] = 1
-        if board.is_pinned(chess.BLACK, square) == True:
-            board_index = square_to_index(square)
-            board_pinned[3][board_index[0]][board_index[1]] = 1
+            board_pinned[1][board_index[0]][board_index[1]] = 1
+        # if board.is_pinned(chess.BLACK, square) == True:
+        #     board_index = square_to_index(square)
+        #     board_pinned[3][board_index[0]][board_index[1]] = 1
 
     # board_pinned = board_pinned.tolist()
 
@@ -1287,7 +1269,7 @@ def get_board_3d_pawn_move(board):
 
 def get_board_total(board):
     """
-    converts chess board into 3D (32, 8, 8) list with board[i] representing:
+    converts chess board into 3D (30, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1315,11 +1297,9 @@ def get_board_total(board):
     24: all squares being a potential move by white pawns
     25: all squares being a potential move by black pawns
     26: all squares being pinned by white with a white piece or pawn on that square
-    27: all squares being pinned by white
-    28: all squares being pinned by black with a black piece or pawn on that square
-    29: all squares being pinned by black
-    30: all squares being possible en passant moves for white
-    31: all squares being possible en passant moves for black
+    27: all squares being pinned by black with a black piece or pawn on that square
+    28: all squares being possible en passant moves for white
+    29: all squares being possible en passant moves for black
 
     Args:
         board (chess.Board): chess board

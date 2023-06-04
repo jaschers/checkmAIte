@@ -39,7 +39,7 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
     
     return out
 
-def load_data(num_runs, name_data, score_cut, read_human, read_draw, read_pinned):
+def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pinned):
     # load data
     table = pd.DataFrame()
     for run in range(num_runs):
@@ -53,23 +53,23 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw, read_pinned
         print(f"Memory usage after loading table run {run}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
-    if read_human == "y":
-        dir_human = "data/3d/32_8_8_depth0_ms15000_human/"
-        filenames = glob.glob(dir_human + "*")
-        filenames = np.sort(filenames)
+    dir_human = "data/3d/30_8_8_depth0_ms15000_human/"
+    filenames = glob.glob(dir_human + "*")
+    filenames = np.sort(filenames)
+    filenames = filenames[:int(num_runs_huma)]
 
-        for filename in filenames:
-            print(f"Loading file {filename}...")
-            start = time.time()
-            table_human = pd.read_hdf(filename, key = "table")
-            middle = time.time()
-            frame = [table, table_human]
-            table = pd.concat(frame)
-            print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
-            print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
+    for filename in filenames:
+        print(f"Loading file {filename}...")
+        start = time.time()
+        table_human = pd.read_hdf(filename, key = "table")
+        middle = time.time()
+        frame = [table, table_human]
+        table = pd.concat(frame)
+        print(f"Memory usage after loading file {filename}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
+        print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
 
     if read_draw == "y":
-        dir_draw = "data/3d/32_8_8_draw/"
+        dir_draw = "data/3d/30_8_8_draw/"
         filenames = glob.glob(dir_draw + "*")
         filenames = np.sort(filenames)
 
@@ -84,7 +84,7 @@ def load_data(num_runs, name_data, score_cut, read_human, read_draw, read_pinned
             print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
     
     if read_pinned == "y":
-        dir_pinned = "data/3d/32_8_8_pinned_checkmate/"
+        dir_pinned = "data/3d/30_8_8_pinned_checkmate/"
         filenames = glob.glob(dir_pinned + "*")
         filenames = np.sort(filenames)
 

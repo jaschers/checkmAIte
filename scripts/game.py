@@ -62,7 +62,7 @@ class ChessApp:
         self.draw_board()
         playsound("sounds/start.m4a")
 
-        self.model = models.load_model("model/model_32_8_8_depth0_mm100_ms15000_ResNet512o1_sc9000-14000_r150_rh150_rd9_rp50_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+        self.model = models.load_model("model/model_30_8_8_depth0_mm100_ms15000_ResNet512o1_sc9000-14000_r150_rh150_rd9_rp50_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
 
         # initialsie transportation table
         self.transposition_table = {}
