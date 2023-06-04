@@ -300,7 +300,7 @@ def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transp
         return(min_eval)
 
 
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, best_move = None, verbose_minimax = False):
+def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, best_move = None, verbose_minimax = False):
     """
     Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
@@ -323,7 +323,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
 
     # # Check if this position is already in the transposition table
     hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
-    if hash_value in transposition_table:
+    if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
         entry = transposition_table[hash_value]
         # print("hash_value", hash_value)
         # print("transposition_table[hash_value]", transposition_table[hash_value])
@@ -339,12 +339,23 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             if alpha >= beta:
                 return entry["eval"], entry["best_move"]
 
-    if depth == 0 or board.is_game_over():
+    if depth == 0 or board.is_game_over() or repetition:
+        if repetition:
+            print("repetition")
         prediction = ai_board_score_pred(board.copy(), model)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
         transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
+        # if board.is_game_over():
+        #     print(board)
+        #     print(board.fen())
+        #     print(np.array(get_board_total(board.copy())))
+        #     print(np.shape(get_board_total(board.copy())))
+        #     print(np.array(get_model_input_parameter(board.copy())))
+        #     print(np.shape(get_model_input_parameter(board.copy())))
+        #     print("prediction", prediction)
+        #     print("game over")
         return(prediction, None)
 
     if maximizing_player:
@@ -354,14 +365,16 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, best_move, verbose_minimax = False)
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, best_move, verbose_minimax = False)
             board.pop()
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
+                if depth == 3:
+                    print("best move", best_move, "max_eval", max_eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
-                ("alpha-beta pruning")
                 break
 
         # Add the current game state and its evaluation to the transposition table
@@ -393,14 +406,14 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         ordered_moves = order_moves(board, transposition_table)
         for move in ordered_moves:
             board.push(move)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, best_move, verbose_minimax = False)
             board.pop()
             if eval < min_eval:
                 min_eval = eval
                 best_move = move
             beta = min(beta, eval)
             if beta <= alpha:
-                ("alpha-beta pruning")
                 break
 
         # Store the evaluation, best move, and flag in the transposition table
@@ -428,7 +441,8 @@ def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
         chess.Move: best move
         float: evaluation of the board
     """
-    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, best_move = None, verbose_minimax = verbose_minimax)
+    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
+    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, best_move = None, verbose_minimax = verbose_minimax)
 
     return(max_move, max_eval)
 
