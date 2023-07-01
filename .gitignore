@@ -4,6 +4,7 @@ scripts/test.py
 scripts/game_minimax.py
 scripts/train_model_test.py
 scripts/convert_to_dd.py
+scripts/depth+.py
 data/
 evaluation/
 games/
