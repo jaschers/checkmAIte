@@ -340,8 +340,6 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 return entry["eval"], entry["best_move"]
 
     if depth == 0 or board.is_game_over() or repetition:
-        if repetition:
-            print("repetition")
         prediction = ai_board_score_pred(board.copy(), model)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
@@ -371,8 +369,6 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
-                if depth == 3:
-                    print("best move", best_move, "max_eval", max_eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
                 break
@@ -1391,17 +1387,17 @@ def get_model_input_parameter(board):
     return(
         turn,
         halfmove_clock, 
+        check, 
+        checkmate, 
+        stalemate,
         insufficient_material_white, 
         insufficient_material_black, 
         seventyfive_moves, 
         fivefold_repetition, 
+        castling_right_queen_side_white,
         castling_right_king_side_white, 
-        castling_right_queen_side_white, 
-        castling_right_king_side_black, 
         castling_right_queen_side_black,
-        check, 
-        checkmate, 
-        stalemate
+        castling_right_king_side_black
         )
 
 def setup_logging(dt_string):
