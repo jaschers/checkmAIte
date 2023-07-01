@@ -191,12 +191,19 @@ def board_score(board, depth = 0):
     Returns:
         int: stockfish score of the input board
     """
-    score_dict = {"15000": 15000, "14999": 14000, "14998": 13000, "14997": 12000, "14996": 11000, "14995": 10000, "14994": 9000, "14993": 8000, "-15000": -15000, "-14999": -14000, "-14998": -13000, "-14997": -12000, "-14996": -11000, "-14995": -10000, "-14994": -9000, "-14993": -8000}
+    score_list = [14999, 14998, 14997, 14996, 14995, 14994, 14993, -14999, -14998, -14997, -14996, -14995, -14994, -14993]
+
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board.copy(), chess.engine.Limit(depth = depth))
     score = result["score"].white().score(mate_score = score_max)
-    if str(score) in score_dict:
-        score = score_dict[f"{score}"]
+
+    # for high stockfish scores, check if it is a potential checkmate not detected by a depth of 0
+    if np.abs(score) > 5000 and np.abs(score) < 14000:
+        result_d5 = engine.analyse(board.copy(), chess.engine.Limit(depth = 5))
+        score_d5 = result_d5["score"].white().score(mate_score = score_max)
+        if score_d5 in score_list:
+            score = score_d5
+
     engine.quit()
     return(score)
 
@@ -576,7 +583,7 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
         board_fen (str): chess board in FEN format
     """
     dict_pieces = np.array(["P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"])
-    dict_turn = np.array(["b", "w"]) # or vice versa?
+    dict_turn = np.array(["b", "w"]) 
     board_int_pieces = board_int[0:number_boards_pieces]
 
     board_fen = ""
@@ -1301,7 +1308,7 @@ def get_board_total(board):
         board (chess.Board): chess board
 
     Returns:
-        list: (32, 8, 8) list of the input board
+        list: (30, 8, 8) list of the input board
     """
     board_pieces = get_board_3d_pieces(board.copy())
     board_pawn_move = get_board_3d_pawn_move(board.copy())
