@@ -34,6 +34,8 @@ parser.add_argument("-d", "--depth", type = int, required = True, metavar = "-",
 parser.add_argument("-v", "--verbose", type = int, required = True, metavar = "-", help = "Verbose 0 (off) or 1 (on)")
 parser.add_argument("-s", "--save", type = int, required = True, metavar = "-", help = "Save 0 (no) or 1 (yes)")
 parser.add_argument("-f", "--flipped", type = int, metavar = "-", default = 0, help = "Flip board 0 (no) or 1 (yes)")
+parser.add_argument("-so", "--sound", type = int, metavar = "-", default = 1, help = "Sound activated 0 (no) or 1 (yes)")
+parser.add_argument("-jit", "--jit_compilation", type = int, metavar = "-", default = 1, help = "Use just in time compilation 0 (no) or 1 (yes)")
 
 args = parser.parse_args()
 ##########################################################################################
@@ -61,9 +63,12 @@ class ChessApp:
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
         self.draw_board()
-        playsound("sounds/start.m4a")
+        if args.sound == 1:
+            playsound("sounds/start.m4a")
 
         self.model = models.load_model("model/model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+        if args.jit_compilation == 1:
+            self.model = tf.function(self.model, jit_compile=True)
 
         # initialsie transportation table
         self.transposition_table = {}
@@ -153,7 +158,8 @@ class ChessApp:
             if self.move in self.board.legal_moves:
                 self.board.push(self.move)
                 self.draw_board()
-                self.play_sound(board = self.board, move = self.move)
+                if args.sound == 1:
+                    self.play_sound(board = self.board, move = self.move)
                 
 
 
@@ -204,7 +210,8 @@ class ChessApp:
             self.move = chess.Move.from_uci(move_uci)
             self.board.push(self.move)
             self.draw_board()
-            self.play_sound(board = self.board, move = self.move)
+            if args.sound == 1:
+                self.play_sound(board = self.board, move = self.move)
             
 
             if args.save == 1:
@@ -227,7 +234,7 @@ class ChessApp:
         # get all valid moves
         board_fen_previous = self.board.fen()
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
-        best_move_ai, _ = get_ai_move(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table, verbose_minimax = True)
+        best_move_ai, _ = get_ai_move(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table, jit_compilation = args.jit_compilation, verbose_minimax = True)
         self.board.push(best_move_ai)
         
         if args.save == 1:
@@ -243,7 +250,7 @@ class ChessApp:
             self.board.push(best_move_stockfish)
 
             # determine predicted ai score of stockfish move
-            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model)
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
 
             # reset last move
             self.board.pop()
@@ -252,7 +259,7 @@ class ChessApp:
             self.board.push(best_move_ai)
             
             # determine predicted ai score of ai move
-            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model)
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
 
             # determine stockfish score of ai move
             analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
@@ -275,7 +282,8 @@ class ChessApp:
             self.logger.info("AI move: %s", best_move_ai)
 
         self.draw_board()
-        self.play_sound(board = self.board, move = best_move_ai)
+        if args.sound == 1:
+            self.play_sound(board = self.board, move = best_move_ai)
         
 
         self.logger.info("--------------------------------------------------------------------------")
@@ -320,7 +328,7 @@ class ChessApp:
 
             exit()
     
-    def play_sound(self, board, move):
+    def play_sound(self, move):
         board_current = self.board.copy()
         board_previous = self.board.copy()
         board_previous.pop()

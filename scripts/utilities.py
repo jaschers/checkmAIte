@@ -239,7 +239,7 @@ def boards_random(num_boards):
 
     return(boards_random_int, boards_random_parameter, boards_random_score)
 
-def ai_board_score_pred(board, model):
+def ai_board_score_pred(board, model, jit_compilation):
     """
     Predicts the score of a board on the CNN model.
     Args:
@@ -251,63 +251,66 @@ def ai_board_score_pred(board, model):
     board_3d_int = [get_board_total(board.copy())]
     board_3d_int = np.moveaxis(board_3d_int, 1, -1)
     parameters = np.array([get_model_input_parameter(board.copy())])
-    prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
+    if jit_compilation == 1:
+        prediction_score = model([board_3d_int, parameters])[0][0].numpy() * 2 * score_max - score_max
+    else:
+        prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
 
-def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
+# def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, jit_compilation, verbose_minimax = False):
+#     if depth < 0 or type(depth) != int:
+#         raise ValueError("Depth needs to be int and greater than 0")
 
-    # Check if the current game state is already in the transposition table
-    hash_value = board.fen()
-    if hash_value in transposition_table:
-        return(transposition_table[hash_value])
+#     # Check if the current game state is already in the transposition table
+#     hash_value = board.fen()
+#     if hash_value in transposition_table:
+#         return(transposition_table[hash_value])
 
-    if depth == 0 or board.is_game_over() == True:
-        prediction = ai_board_score_pred(board.copy(), model)
+#     if depth == 0 or board.is_game_over() == True:
+#         prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
  
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = prediction
-        return(prediction)
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = prediction
+#         return(prediction)
 
-    # maximizing_player == True -> AI's turn
-    if maximizing_player == True:
-        evals = []
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
-            board.pop()
-            evals.append(eval)
+#     # maximizing_player == True -> AI's turn
+#     if maximizing_player == True:
+#         evals = []
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
+#             board.pop()
+#             evals.append(eval)
         
-        evals = dask.compute(*evals, num_workers = 3)
-        # print("ai turn evals", evals)
-        argmax = np.argmax(evals)
-        max_eval = evals[argmax]
+#         evals = dask.compute(*evals, num_workers = 3)
+#         # print("ai turn evals", evals)
+#         argmax = np.argmax(evals)
+#         max_eval = evals[argmax]
         
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = max_eval
-        return(max_eval)
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = max_eval
+#         return(max_eval)
 
-    # maximizing_player == False -> player's turn
-    else:
-        evals = []
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
-            board.pop()
-            evals.append(eval)            
+#     # maximizing_player == False -> player's turn
+#     else:
+#         evals = []
+#         for valid_move in board.legal_moves:
+#             board.push(valid_move)
+#             eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
+#             board.pop()
+#             evals.append(eval)            
         
-        evals = dask.compute(*evals, num_workers = 3)
-        # print("players turn evals", evals)
-        argmin = np.argmin(evals)
-        min_eval = evals[argmin]
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = min_eval
-        return(min_eval)
+#         evals = dask.compute(*evals, num_workers = 3)
+#         # print("players turn evals", evals)
+#         argmin = np.argmin(evals)
+#         min_eval = evals[argmin]
+#         # Add the current game state and its evaluation to the transposition table
+#         transposition_table[hash_value] = min_eval
+#         return(min_eval)
 
 
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, best_move = None, verbose_minimax = False):
+def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, jit_compilation, best_move = None, verbose_minimax = False):
     """
     Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
@@ -347,7 +350,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 return entry["eval"], entry["best_move"]
 
     if depth == 0 or board.is_game_over() or repetition:
-        prediction = ai_board_score_pred(board.copy(), model)
+        prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
@@ -371,7 +374,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, best_move, verbose_minimax = False)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
             board.pop()
             if eval > max_eval:
                 max_eval = eval
@@ -410,7 +413,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, best_move, verbose_minimax = False)
+            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
             board.pop()
             if eval < min_eval:
                 min_eval = eval
@@ -431,7 +434,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return (min_eval, best_move)
 
 
-def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
+def get_ai_move(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
     """
     Get the best move for the AI
     Args:
@@ -445,29 +448,29 @@ def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
         float: evaluation of the board
     """
     repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, best_move = None, verbose_minimax = verbose_minimax)
+    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, jit_compilation = jit_compilation, best_move = None, verbose_minimax = verbose_minimax)
 
     return(max_move, max_eval)
 
-def get_ai_move_parallel(board, model, depth, transposition_table, verbose_minimax):
-    max_move = None
-    max_eval = -np.inf
-    evals = []
-    start = time.time()
-    for valid_move in list(board.legal_moves):
-        board.push(valid_move)
-        # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-        eval = dask.delayed(minimax)(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
-        board.pop()
-        evals.append(eval)
-    with ProgressBar():
-        evals = dask.compute(*evals, num_workers = 3)
-    argmax = np.argmax(evals)
-    max_eval = evals[argmax]
-    max_move = list(board.legal_moves)[argmax]
+# def get_ai_move_parallel(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
+#     max_move = None
+#     max_eval = -np.inf
+#     evals = []
+#     start = time.time()
+#     for valid_move in list(board.legal_moves):
+#         board.push(valid_move)
+#         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
+#         eval = dask.delayed(minimax)(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
+#         board.pop()
+#         evals.append(eval)
+#     with ProgressBar():
+#         evals = dask.compute(*evals, num_workers = 3)
+#     argmax = np.argmax(evals)
+#     max_eval = evals[argmax]
+#     max_move = list(board.legal_moves)[argmax]
 
-    print("time needed", time.time() - start)
-    return(max_move, max_eval)
+#     print("time needed", time.time() - start)
+#     return(max_move, max_eval)
 
 def save_board_png(board, game_name, counter):
     """
@@ -1479,6 +1482,10 @@ def order_moves(board, transposition_table):
             score = position_score(board, move)
             data.append([move, False, False, False, True, score])
 
+    # print("-----------------------------------")
+    # print("order_moves function")
+    # print(data)
+    # print(data)
     table = pd.DataFrame(data = data, columns = ["move", "TT", "check", "capture", "position", "score"])
     table = table.sort_values(by = ["TT", "check", "capture", "position", "score"], ascending = False)
     moves = table["move"].to_numpy()
