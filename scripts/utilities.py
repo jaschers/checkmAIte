@@ -533,7 +533,7 @@ def get_valid_moves(board):
     valid_moves_str = [valid_moves[i].uci() for i in range(len(valid_moves))]
     return(valid_moves, valid_moves_str)
 
-def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
+def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai, depth):
     """
     Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
 
@@ -552,7 +552,7 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     stockfish_scores = []
     for i in range(len(valid_moves)):
         board.push(valid_moves[i])
-        result = engine.analyse(board, chess.engine.Limit(depth = 0))
+        result = engine.analyse(board, chess.engine.Limit(depth = depth - 1))
         stockfish_score = result["score"].white().score(mate_score = score_max)
         stockfish_scores.append(stockfish_score)
 

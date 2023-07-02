@@ -244,7 +244,7 @@ class ChessApp:
         # print results
         if args.verbose == 1:
             self.board.pop()    
-            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai)
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
 
             # push best stockfish move
             self.board.push(best_move_stockfish)
