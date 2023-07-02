@@ -159,7 +159,7 @@ class ChessApp:
                 self.board.push(self.move)
                 self.draw_board()
                 if args.sound == 1:
-                    self.play_sound(board = self.board, move = self.move)
+                    self.play_sound(move = self.move)
                 
 
 
@@ -211,7 +211,7 @@ class ChessApp:
             self.board.push(self.move)
             self.draw_board()
             if args.sound == 1:
-                self.play_sound(board = self.board, move = self.move)
+                self.play_sound(move = self.move)
             
 
             if args.save == 1:
@@ -283,7 +283,7 @@ class ChessApp:
 
         self.draw_board()
         if args.sound == 1:
-            self.play_sound(board = self.board, move = best_move_ai)
+            self.play_sound(move = best_move_ai)
         
 
         self.logger.info("--------------------------------------------------------------------------")
