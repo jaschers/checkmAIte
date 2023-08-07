@@ -46,7 +46,7 @@ for filename in filenames:
         count += 1
         count_total += 1
         
-        if count == 10000 or count_total == num_lines:
+        if count == 10000:
             if (int(filename_id) == 0 and int(filename_subid) >= 0) or int(filename_id) > 0:
                 boards_random_parameter = np.array(boards_random_parameter)
 
