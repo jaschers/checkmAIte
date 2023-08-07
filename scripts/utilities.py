@@ -782,11 +782,11 @@ def save_examples(table, name):
     print("Saving examples...")
     os.system(f"rm evaluation/{name}/examples/*")
 
-    model = models.load_model(f"model/model_{name}.h5")
+    # model = models.load_model(f"model/model_{name}.h5")
 
-    for layer in model.layers:
-        if "conv" in layer.name:
-            last_conv_layer_name = layer.name
+    # for layer in model.layers:
+    #     if "conv" in layer.name:
+    #         last_conv_layer_name = layer.name
 
     for i in range(len(table)):
         board = chess.Board(table["board (FEN)"][i])
@@ -812,6 +812,10 @@ def save_examples(table, name):
         outputfile.close()
         os.system("convert -density 1200 -resize 780x780 " + path + ".svg " + path + ".png")
         os.system("rm " + path + ".svg")
+
+        # TO DO: check why there is an invalid fen board in the example table of -na test / test2
+
+        print(board)
 
         X_board3d = get_board_total(board.copy())
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
@@ -1542,3 +1546,44 @@ def position_score(board, move):
         position_score += 1
 
     return(position_score)
+
+def score_resolution(table, name):
+    print("Plotting score resolution...")
+    score_min, score_max = -15000, 15000
+    bins = np.linspace(score_min, score_max, 9)
+    bins_central = (bins[1:] + bins[:-1]) / 2
+    sigmas = []
+
+    print(table)
+
+    fig, ax = plt.subplots(3, 3, figsize = (20, 20))
+    ax = ax.ravel()
+    for i in range(len(bins) - 1):
+        print("bin", bins[i], bins[i + 1])
+        table_bin = table[(table["true score"] >= bins[i]) & (table["true score"] < bins[i + 1])]
+        print("number boards", len(table_bin))
+
+        delta_score = (table_bin["predicted score"] - table_bin["true score"]) #/ table_bin["true score"]
+        score_median = np.median(delta_score)
+        delta_score_corrected = np.abs(delta_score - score_median)
+        delta_score_corrected = np.sort(delta_score_corrected)
+        index_68 = int(len(delta_score_corrected) * 0.68)
+        sigma = delta_score_corrected[index_68]
+        sigmas.append(sigma)
+
+        ax[i].hist(delta_score, bins = 10)
+        ax[i].set_title(f"Bin {i + 1}: {bins[i]:.2f} - {bins[i + 1]:.2f}")
+    ax[-2].set_xlabel("Score error")
+    ax[3].set_ylabel("Number of boards")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/hist_delta_score_binned_{name}.pdf", dpi = 300)
+    plt.close()
+
+    plt.figure()
+    plt.plot(bins_central, sigmas)
+    plt.xlabel("Score")
+    plt.ylabel("Score error (68%)")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/score_error_{name}.pdf", dpi = 300)
+    plt.close()
+

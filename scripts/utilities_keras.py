@@ -1,4 +1,4 @@
-from keras.layers import Conv2D, ReLU, Add, BatchNormalization
+from keras.layers import Conv2D, ReLU, Add, BatchNormalization, MaxPooling2D, PReLU, ELU, LeakyReLU, Softmax
 import pandas as pd
 import time
 import numpy as np
@@ -7,10 +7,12 @@ import psutil
 import dask.array as da
 import glob
 
-def ResBlock(z, kernelsizes, filters, increase_dim = False):
+def ResBlock(z, kernelsizes, filters, activation_function, dir_af, increase_dim = False):
     # https://github.com/priya-dwivedi/Deep-Learning/blob/master/resnet_keras/Residual_Networks_yourself.ipynb
     # https://stackoverflow.com/questions/64792460/how-to-code-a-residual-block-using-two-layers-of-a-basic-cnn-algorithm-built-wit
     # https://towardsdatascience.com/understanding-and-coding-a-resnet-in-keras-446d7ff84d33
+
+    dir_af = {"relu": ReLU(), "leakyrelu": LeakyReLU(), "prelu": PReLU(), "elu": ELU(), "softmax": Softmax()}
 
     z_shortcut = z
     # z_shortcut = BatchNormalization()(z_shortcut)
@@ -19,12 +21,14 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
 
     fz = Conv2D(filters_1, kernelsize_1)(z)
     # fz = BatchNormalization()(fz)
-    fz = ReLU()(fz)
+    # fz = ReLU()(fz)
+    fz = dir_af[activation_function](fz)
 
     fz = Conv2D(filters_1, kernelsize_2, padding = "same")(fz)
     # fz = BatchNormalization()(fz)
-    fz = ReLU()(fz)
-    
+    # fz = ReLU()(fz)
+    fz = dir_af[activation_function](fz)
+
     fz = Conv2D(filters_2, kernelsize_1)(fz)
     # fz = BatchNormalization()(fz)
 
@@ -34,7 +38,8 @@ def ResBlock(z, kernelsizes, filters, increase_dim = False):
 
     out = Add()([fz, z_shortcut])
     # out = BatchNormalization()(out)
-    out = ReLU()(out)
+    out = dir_af[activation_function](out)
+    # out = ReLU()(out)
     # out = MaxPooling2D(pool_size=(3, 3), strides = 1)(out)
     
     return out
@@ -45,7 +50,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
     for run in range(num_runs):
         print(f"Loading data run {run}...")
         start = time.time()
-        table_run = pd.read_hdf(f"data/3d/{name_data}/data{run}.h5", key = "table")
+        table_run = pd.read_hdf(f"data/3d/{name_data}_mm100_ms15000/data{run}.h5", key = "table")
         middle = time.time()
         frame = [table, table_run]
         table = pd.concat(frame)
@@ -53,7 +58,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
         print(f"Memory usage after loading table run {run}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
-    dir_human = "data/3d/30_8_8_depth0_ms15000_human/"
+    dir_human = f"data/3d/{name_data}_ms15000_human/"
     filenames = glob.glob(dir_human + "*")
     filenames = np.sort(filenames)
     filenames = filenames[:int(num_runs_huma)]
@@ -131,7 +136,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
 
 def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_parameter, name):
     difference = prediction_val - true_score_val
-    indices_min = difference.argsort()[:10]
+    indices_min = difference.argsort()[:20]
     indices_max = difference.argsort()[-10:][::-1]
     indices_zero = (np.abs(difference)).argsort()[:10]
 
@@ -139,11 +144,22 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
 
     X_board3d_extreme, X_parameter_extreme, difference_extreme = np.array(X_board3d)[indices], np.array(X_parameter)[indices], difference[indices]
 
+    print("##########################################")
+    print("shape X_board3d_extreme:", X_board3d_extreme.shape)
+    print("##########################################")
+
     X_board3d_extreme = np.moveaxis(X_board3d_extreme, -1, 1)
+
+    print("##########################################")
+    print("shape X_board3d_extreme:", X_board3d_extreme.shape)
+    print("##########################################")
 
     X_board_extreme = []
     for i in range(len(X_board3d_extreme)):
         X_board_extreme.append(convert_board_int_to_fen(X_board3d_extreme[i], 12, X_parameter_extreme[i][0], None, None, X_parameter_extreme[i][1], 1))
+
+        if i < 10:
+            print(convert_board_int_to_fen(X_board3d_extreme[i], 12, X_parameter_extreme[i][0], None, None, X_parameter_extreme[i][1], 1))
 
     table_baord = pd.DataFrame({"board (FEN)": X_board_extreme})
     table_baord3d = pd.DataFrame({"board3d": list(X_board3d_extreme)})
