@@ -12,6 +12,8 @@ from datetime import datetime
 import psutil
 from playsound import playsound
 from keras import models
+import multiprocessing as mp
+from functools import partial
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -45,6 +47,8 @@ class ChessApp:
         self.master = master
         master.title("Chess")
 
+        self.num_processes = mp.cpu_count()
+
         # Create canvas for displaying chess board
         self.width, self.height = 390, 390
         self.width_border, self.height_border = 14, 14# self.width / (80/3), self.height / (80/3)
@@ -67,18 +71,21 @@ class ChessApp:
             playsound("sounds/start.m4a")
 
         self.model = models.load_model("model/model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+
         if args.jit_compilation == 1:
             self.model = tf.function(self.model, jit_compile=True)
 
         # initialsie transportation table
         self.transposition_table = {}
+        self.manager = mp.Manager()
+        self.transposition_table_parallel = self.manager.dict()
 
         # empty list for ai accuracy
         self.ai_accuracy = []
 
         self.setup_save()
 
-        self.ai_move()
+        self.ai_move_parallel_4()
 
         # Bind mouse events to canvas
         self.canvas.bind("<Button-1>", self.on_click)
@@ -168,7 +175,7 @@ class ChessApp:
                     self.board_counter += 1
 
                 self.check_game_over()
-                self.ai_move()
+                self.ai_move_parallel_4()
             elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55) and (self.board.is_check() == False):
                 self.text = tk.Text(self.master, height = 1, width = 2)
                 self.text.pack()
@@ -221,7 +228,7 @@ class ChessApp:
             self.check_game_over()
             self.button.pack_forget()
             self.text.pack_forget()
-            self.ai_move()
+            self.ai_move_parallel_4()
         else:
             self.logger.info("Invalid piece type")
 
@@ -274,6 +281,293 @@ class ChessApp:
             self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
             self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
             self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
+
+        self.draw_board()
+        if args.sound == 1:
+            self.play_sound(move = best_move_ai)
+        
+
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+
+    def ai_move_parallel(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
+        # get all valid moves
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        ordered_moves = order_moves(self.board.copy(), self.transposition_table_parallel)
+
+        with mp.Pool(processes=self.num_processes) as pool:
+            get_ai_move_parallel_with_args = partial(get_ai_move_parallel, self.board.copy(), args.depth, self.transposition_table_parallel, args.jit_compilation, False, True)
+            results = list(tqdm(pool.imap(get_ai_move_parallel_with_args, ordered_moves), total=len(ordered_moves)))
+
+        best_move_ai, _ = max(results, key=lambda x: x[1])
+
+        self.board.push(best_move_ai)
+        
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
+
+        # print results
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # reset last move
+            self.board.pop()
+
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Lentgh transposition table parallel: %s", len(self.transposition_table_parallel))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
+
+        self.draw_board()
+        if args.sound == 1:
+            self.play_sound(move = best_move_ai)
+        
+
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+
+    def ai_move_parallel_2(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
+        # get all valid moves
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        best_move_ai, _ = get_ai_move_parallel_2(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table_parallel, jit_compilation = args.jit_compilation, verbose_minimax = True)
+        self.board.push(best_move_ai)
+        
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
+
+        # print results
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # reset last move
+            self.board.pop()
+
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
+
+        self.draw_board()
+        if args.sound == 1:
+            self.play_sound(move = best_move_ai)
+        
+
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+
+    def ai_move_parallel_3(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
+        # get all valid moves
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        best_move_ai, _ = get_ai_move_parallel_3(self.board.copy(), self.model, depth = args.depth, transposition_table = self.transposition_table_parallel, jit_compilation = args.jit_compilation, verbose_minimax = True)
+        self.board.push(best_move_ai)
+        
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
+
+        # print results
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # reset last move
+            self.board.pop()
+
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
+
+        self.draw_board()
+        if args.sound == 1:
+            self.play_sound(move = best_move_ai)
+        
+
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+
+    def ai_move_parallel_4(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
+        # get all valid moves
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        ordered_moves = order_moves(self.board.copy(), self.transposition_table_parallel)
+
+        ordered_moves = [ordered_moves[i:i+self.num_processes] for i in range(0, len(ordered_moves), self.num_processes)]
+
+        maximizing_player = True
+        alpha = -np.inf
+        beta = np.inf
+        max_eval = -np.inf
+
+        if maximizing_player:
+            for ordered_moves_chunk in tqdm(ordered_moves):
+                with mp.Pool(processes=self.num_processes) as pool:
+                    get_ai_move_parallel_with_args = partial(get_ai_move_parallel_4, self.board.copy(), args.depth, alpha, beta, self.transposition_table_parallel, args.jit_compilation, False, True)
+                    # results = list(tqdm(pool.imap(get_ai_move_parallel_with_args, ordered_moves_chunk), total=len(ordered_moves_chunk)))
+                    results = list(pool.imap(get_ai_move_parallel_with_args, ordered_moves_chunk))
+
+                best_move_chunk, max_eval_chunk = max(results, key=lambda x: x[1])
+                if max_eval_chunk > max_eval:
+                    max_eval = max_eval_chunk
+                    best_move_ai = best_move_chunk
+                alpha = max(alpha, max_eval_chunk)
+                print("alpha", alpha)
+
+        self.board.push(best_move_ai)
+        
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
+
+        # print results
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # reset last move
+            self.board.pop()
+
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Lentgh transposition table parallel: %s", len(self.transposition_table_parallel))
             self.logger.info("Previous board FEN: %s", board_fen_previous)
             self.logger.info("Board FEN: %s", self.board.fen())
             self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
