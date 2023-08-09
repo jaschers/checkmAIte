@@ -973,6 +973,45 @@ def get_ai_move_parallel_4(board, depth, alpha, beta, transposition_table, jit_c
         jit_compilation, 
         verbose_minimax = verbose_minimax)
     board.pop()
+    print("get_ai_move_parallel_4")
+    print("move", move)
+    print("eval", eval)
+    return move, eval
+
+def get_ai_move_parallel_5(board, depth, dict_parallel, transposition_table, jit_compilation, verbose_minimax, maximizing_player, move):
+    """
+    Get the best move for the AI
+    Args:
+        board (chess.Board): chess board
+        model (keras.Model): neural network model
+        depth (int): depth of the minimax algorithm
+        transposition_table (dict): transposition table
+        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+    Returns:
+        chess.Move: best move
+        float: evaluation of the board
+    """
+    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
+
+    board.push(move)
+    maximizing_player = not maximizing_player
+    eval = eval = minimax_parallel(
+        board, 
+        depth - 1, 
+        dict_parallel["alpha"], 
+        dict_parallel["beta"], 
+        maximizing_player, 
+        transposition_table, 
+        repetition, 
+        jit_compilation, 
+        verbose_minimax = verbose_minimax)
+    board.pop()
+    
+    if eval > dict_parallel["max_eval"]:
+        dict_parallel["max_eval"] = eval
+        dict_parallel["best_move"] = move
+    dict_parallel["alpha"] = max(dict_parallel["alpha"], eval)
+    
     return move, eval
 
 # def get_ai_move_parallel(board, model, depth, transposition_table, jit_compilation, verbose_minimax):

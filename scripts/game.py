@@ -85,7 +85,7 @@ class ChessApp:
 
         self.setup_save()
 
-        self.ai_move_parallel_4()
+        self.ai_move_parallel_5()
 
         # Bind mouse events to canvas
         self.canvas.bind("<Button-1>", self.on_click)
@@ -175,7 +175,7 @@ class ChessApp:
                     self.board_counter += 1
 
                 self.check_game_over()
-                self.ai_move_parallel_4()
+                self.ai_move_parallel_5()
             elif self.selected_piece.piece_type == chess.PAWN and (self.release_square < 8 or self.release_square > 55) and (self.board.is_check() == False):
                 self.text = tk.Text(self.master, height = 1, width = 2)
                 self.text.pack()
@@ -228,7 +228,7 @@ class ChessApp:
             self.check_game_over()
             self.button.pack_forget()
             self.text.pack_forget()
-            self.ai_move_parallel_4()
+            self.ai_move_parallel_5()
         else:
             self.logger.info("Invalid piece type")
 
@@ -507,12 +507,15 @@ class ChessApp:
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
         ordered_moves = order_moves(self.board.copy(), self.transposition_table_parallel)
 
-        ordered_moves = [ordered_moves[i:i+self.num_processes] for i in range(0, len(ordered_moves), self.num_processes)]
+        ordered_moves = [ordered_moves[i:i+self.num_processes] for i in range(1, len(ordered_moves), self.num_processes)]
 
         maximizing_player = True
         alpha = -np.inf
         beta = np.inf
         max_eval = -np.inf
+
+        # TO DO:
+        # set maximizing player variable and max_eval to True or False depending on who's turn it is
 
         if maximizing_player:
             for ordered_moves_chunk in tqdm(ordered_moves):
@@ -527,6 +530,106 @@ class ChessApp:
                     best_move_ai = best_move_chunk
                 alpha = max(alpha, max_eval_chunk)
                 print("alpha", alpha)
+
+        self.board.push(best_move_ai)
+        
+        if args.save == 1:
+            save_board_png(board = self.board.copy(), game_name = self.dt_string, counter = self.board_counter)
+            self.board_counter += 1
+
+        # print results
+        if args.verbose == 1:
+            self.board.pop()    
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+
+            # push best stockfish move
+            self.board.push(best_move_stockfish)
+
+            # determine predicted ai score of stockfish move
+            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # reset last move
+            self.board.pop()
+
+            # push best ai move
+            self.board.push(best_move_ai)
+            
+            # determine predicted ai score of ai move
+            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+
+            # determine stockfish score of ai move
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
+
+            self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
+
+            self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
+            self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
+            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
+            self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
+            self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
+            self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info("Lentgh transposition table parallel: %s", len(self.transposition_table_parallel))
+            self.logger.info("Previous board FEN: %s", board_fen_previous)
+            self.logger.info("Board FEN: %s", self.board.fen())
+            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            
+        else:
+            self.logger.info("AI move: %s", best_move_ai)
+
+        self.draw_board()
+        if args.sound == 1:
+            self.play_sound(move = best_move_ai)
+        
+
+        self.logger.info("--------------------------------------------------------------------------")
+        self.check_game_over()
+
+    def ai_move_parallel_5(self):
+        """
+        Make AI move
+        Args:
+            self (ChessApp): An instance of ChessApp.
+        """
+        # get all valid moves
+        board_fen_previous = self.board.fen()
+        valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
+        ordered_moves = order_moves(self.board.copy(), self.transposition_table_parallel)
+
+        # ordered_moves = [ordered_moves[i:i+self.num_processes] for i in range(1, len(ordered_moves), self.num_processes)]
+
+        maximizing_player = True
+        alpha = -np.inf
+        beta = np.inf
+        max_eval = -np.inf
+
+        dict_parallel = self.manager.dict()
+        dict_parallel["alpha"] = -np.inf
+        dict_parallel["beta"] = np.inf
+        dict_parallel["max_eval"] = -np.inf
+        dict_parallel["best_move"] = None
+
+        # TO DO:
+        # set maximizing player variable and max_eval to True or False depending on who's turn it is
+
+        # if maximizing_player:
+        #     print("maximizing player")
+        #     with mp.Pool(processes=self.num_processes) as pool:
+        #         print("pool started")
+        #         get_ai_move_parallel_with_args = partial(get_ai_move_parallel_5, self.board.copy(), args.depth, dict_parallel, self.transposition_table_parallel, args.jit_compilation, False, True)
+
+        #         results = pool.imap_unordered(get_ai_move_parallel_with_args, ordered_moves)
+        #         print(results)
+
+        with mp.Pool(processes=self.num_processes) as pool:
+            # add necesarry arguments to the function except of the table rows since this is the variable to loop over
+            get_ai_move_parallel_with_args = partial(get_ai_move_parallel_5, self.board.copy(), args.depth, dict_parallel, self.transposition_table_parallel, args.jit_compilation, False, True)
+            # Use tqdm to visualize the progress of the loop
+            for _ in tqdm(pool.imap_unordered(get_ai_move_parallel_with_args, ordered_moves), total = len(ordered_moves)):
+                pass
+
+        best_move_ai = dict_parallel["best_move"]
 
         self.board.push(best_move_ai)
         
