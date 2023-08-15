@@ -261,11 +261,11 @@ def ai_board_score_pred(board, model, jit_compilation):
         prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
-def load_model():
+def load_model(model_name):
     global model
-    model = models.load_model("model/model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5")
+    model = models.load_model(f"model/{model_name}")
 
-def ai_board_score_pred_parallel(board, jit_compilation):
+def ai_board_score_pred_parallel(board, model_name, jit_compilation):
     """
     Predicts the score of a board on the CNN model.
     Args:
@@ -279,7 +279,7 @@ def ai_board_score_pred_parallel(board, jit_compilation):
     # Load the model if it's not already loaded
     if model is None:
         # start = time.time()
-        load_model()
+        load_model(model_name)
         # print("Time needed to load model:", time.time() - start)
 
     board_3d_int = [get_board_total(board.copy())]
@@ -292,59 +292,7 @@ def ai_board_score_pred_parallel(board, jit_compilation):
     return(prediction_score)
 
 
-# def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, jit_compilation, verbose_minimax = False):
-#     if depth < 0 or type(depth) != int:
-#         raise ValueError("Depth needs to be int and greater than 0")
-
-#     # Check if the current game state is already in the transposition table
-#     hash_value = board.fen()
-#     if hash_value in transposition_table:
-#         return(transposition_table[hash_value])
-
-#     if depth == 0 or board.is_game_over() == True:
-#         prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
- 
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = prediction
-#         return(prediction)
-
-#     # maximizing_player == True -> AI's turn
-#     if maximizing_player == True:
-#         evals = []
-#         for valid_move in board.legal_moves:
-#             board.push(valid_move)
-#             eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
-#             board.pop()
-#             evals.append(eval)
-        
-#         evals = dask.compute(*evals, num_workers = 3)
-#         # print("ai turn evals", evals)
-#         argmax = np.argmax(evals)
-#         max_eval = evals[argmax]
-        
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = max_eval
-#         return(max_eval)
-
-#     # maximizing_player == False -> player's turn
-#     else:
-#         evals = []
-#         for valid_move in board.legal_moves:
-#             board.push(valid_move)
-#             eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
-#             board.pop()
-#             evals.append(eval)            
-        
-#         evals = dask.compute(*evals, num_workers = 3)
-#         # print("players turn evals", evals)
-#         argmin = np.argmin(evals)
-#         min_eval = evals[argmin]
-#         # Add the current game state and its evaluation to the transposition table
-#         transposition_table[hash_value] = min_eval
-#         return(min_eval)
-
-
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, jit_compilation, best_move = None, verbose_minimax = False):
+def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, repetition, multiprocessing = 0, jit_compilation = 0, best_move = None, model = None, model_name = None, root_node = False):
     """
     Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
@@ -356,7 +304,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         maximizing_player (bool): True if AI is playing, False if player is playing
         transposition_table (dict): transposition table
         best_move (chess.Move): best move
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
     Returns:
         float: evaluation of the board
         chess.Move: best move
@@ -369,8 +317,6 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
     hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
     if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
         entry = transposition_table[hash_value]
-        # print("hash_value", hash_value)
-        # print("transposition_table[hash_value]", transposition_table[hash_value])
         # Check if the stored depth is greater than or equal to the current depth
         if entry["depth"] >= depth:
             # Use the stored evaluation and best move
@@ -384,31 +330,66 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
                 return entry["eval"], entry["best_move"]
 
     if depth == 0 or board.is_game_over() or repetition:
-        prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
+        if multiprocessing == 1:
+            prediction = ai_board_score_pred_parallel(board.copy(), model_name, jit_compilation)
+        else:
+            prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
+
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
-        # if board.is_game_over():
-        #     print(board)
-        #     print(board.fen())
-        #     print(np.array(get_board_total(board.copy())))
-        #     print(np.shape(get_board_total(board.copy())))
-        #     print(np.array(get_model_input_parameter(board.copy())))
-        #     print(np.shape(get_model_input_parameter(board.copy())))
-        #     print("prediction", prediction)
-        #     print("game over")
+        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": best_move}
         return(prediction, None)
 
     if maximizing_player:
         max_eval = -np.inf
+
+        # Null-move pruning: skip AI's turn and evaluate
+        if depth >= 3 and not board.is_check():
+            null_move_reduction = 2  # Depth reduction for null-move
+            board.push(chess.Move.null())  # Apply null move
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            null_move_eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1 - null_move_reduction, 
+                alpha = -beta, 
+                beta = beta + 1, 
+                maximizing_player = False, 
+                transposition_table = transposition_table, 
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
+            board.pop()  # Undo null move
+
+            if null_move_eval >= beta:
+                return (null_move_eval, None)
+
         ordered_moves = order_moves(board, transposition_table)
-        if verbose_minimax == True:
+        if root_node == True:
             ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
+            eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1, 
+                alpha = alpha, 
+                beta = beta, 
+                maximizing_player = False, 
+                transposition_table = transposition_table, 
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
             board.pop()
             if eval > max_eval:
                 max_eval = eval
@@ -429,25 +410,29 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return(max_eval, best_move)
 
     else:
-        # # Null move pruning
-        # if depth >= 2:
-        #     null_move = chess.Move.null()
-        #     board.push(null_move)
-        #     eval, _ = minimax(board.copy(), model, depth - 3, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
-        #     board.pop()
-        #     print("Null move pruning attempt")
-        #     print("beta", beta, "eval", eval)
-
-        #     if eval >= beta:
-        #         print("Null move pruning")
-        #         return beta
-        
         min_eval = np.inf
+        
         ordered_moves = order_moves(board, transposition_table)
+        if root_node == True:
+            ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
+            eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1, 
+                alpha = alpha, 
+                beta = beta, 
+                maximizing_player = True, 
+                transposition_table = transposition_table, 
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
             board.pop()
             if eval < min_eval:
                 min_eval = eval
@@ -466,400 +451,9 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
 
         return (min_eval, best_move)
-    
-def minimax_parallel(board, depth, alpha, beta, maximizing_player, transposition_table, repetition, jit_compilation, verbose_minimax = False):
-    """
-    Minimax algorithm with alpha-beta pruning, transposition table and move ordering
-    Args:
-        board (chess.Board): chess board
-        model (keras.model): CNN model
-        depth (int): depth of the search tree
-        alpha (float): alpha value for alpha-beta pruning
-        beta (float): beta value for alpha-beta pruning
-        maximizing_player (bool): True if AI is playing, False if player is playing
-        transposition_table (dict): transposition table
-        best_move (chess.Move): best move
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        float: evaluation of the board
-        chess.Move: best move
-    """
-    # print("alpha", alpha, "beta", beta)
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
 
-    # # Check if this position is already in the transposition table
-    hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
-    if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
-        entry = transposition_table[hash_value]
-        # Check if the stored depth is greater than or equal to the current depth
-        if entry["depth"] >= depth:
-            # Use the stored evaluation and best move
-            if entry["flag"] == "exact":
-                return entry["eval"]
-            elif entry["flag"] == "lower_bound":
-                alpha = max(alpha, entry["eval"])
-            elif entry["flag"] == "upper_bound":
-                beta = min(beta, entry["eval"])
-            if alpha >= beta:
-                return entry["eval"]
 
-    if depth == 0 or board.is_game_over() or repetition:
-        prediction = ai_board_score_pred_parallel(board.copy(), jit_compilation)
-        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
-        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table)}
-        return(prediction)
-
-    if maximizing_player:
-        max_eval = -np.inf
-        ordered_moves = order_moves(board, transposition_table)
-        if verbose_minimax == True:
-            ordered_moves = tqdm(ordered_moves)
-        for move in ordered_moves:
-            board.push(move)
-            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval = minimax_parallel(board.copy(), depth - 1, alpha, beta, False, transposition_table, repetition_update, jit_compilation, verbose_minimax = False)
-            board.pop()
-            if eval > max_eval:
-                max_eval = eval
-            alpha = max(alpha, eval)
-            if beta <= alpha:
-                break
-
-        # Add the current game state and its evaluation to the transposition table
-        if max_eval <= alpha:
-            flag = "upper_bound"
-        elif max_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": max_eval, "ancient": len(transposition_table)}
-
-        return(max_eval)
-
-    else:
-        min_eval = np.inf
-        ordered_moves = order_moves(board, transposition_table)
-        for move in ordered_moves:
-            board.push(move)
-            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval = minimax_parallel(board.copy(), depth - 1, alpha, beta, True, transposition_table, repetition_update, jit_compilation, verbose_minimax = False)
-            board.pop()
-            if eval < min_eval:
-                min_eval = eval
-            beta = min(beta, eval)
-            if beta <= alpha:
-                break
-
-        # Store the evaluation, best move, and flag in the transposition table
-        if min_eval <= alpha:
-            flag = "upper_bound"
-        elif min_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table)}
-
-        return (min_eval)
-    
-def minimax_parallel_2(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, jit_compilation, best_move = None, verbose_minimax = False):
-    """
-    Minimax algorithm with alpha-beta pruning, transposition table and move ordering
-    Args:
-        board (chess.Board): chess board
-        model (keras.model): CNN model
-        depth (int): depth of the search tree
-        alpha (float): alpha value for alpha-beta pruning
-        beta (float): beta value for alpha-beta pruning
-        maximizing_player (bool): True if AI is playing, False if player is playing
-        transposition_table (dict): transposition table
-        best_move (chess.Move): best move
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        float: evaluation of the board
-        chess.Move: best move
-    """
-    # print("alpha", alpha, "beta", beta)
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
-
-    # # Check if this position is already in the transposition table
-    hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
-    if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
-        entry = transposition_table[hash_value]
-        # print("hash_value", hash_value)
-        # print("transposition_table[hash_value]", transposition_table[hash_value])
-        # Check if the stored depth is greater than or equal to the current depth
-        if entry["depth"] >= depth:
-            # Use the stored evaluation and best move
-            if entry["flag"] == "exact":
-                return entry["eval"], entry["best_move"]
-            elif entry["flag"] == "lower_bound":
-                alpha = max(alpha, entry["eval"])
-            elif entry["flag"] == "upper_bound":
-                beta = min(beta, entry["eval"])
-            if alpha >= beta:
-                return entry["eval"], entry["best_move"]
-
-    if depth == 0 or board.is_game_over() or repetition:
-        prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
-        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
-        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
-        return(prediction, None)
-
-    if maximizing_player:
-        max_eval = -np.inf
-        ordered_moves = order_moves(board, transposition_table)
-        if verbose_minimax == True:
-            ordered_moves = tqdm(ordered_moves)
-
-        if depth == 1:
-            # get number of cpu cores available
-            num_processes = mp.cpu_count()
-    
-            # use multiprocessing to parallelize the minimax algorithm at depth 1
-            with mp.Pool(processes=num_processes) as pool:                
-                evaluate_boards_parallel_with_args = partial(evaluate_boards_parallel, board.copy(), depth - 1, hash_value, transposition_table, jit_compilation)
-                results = list(pool.imap(evaluate_boards_parallel_with_args, ordered_moves))
-    
-            max_eval, best_move = max(results, key=lambda x: x[0])
-            alpha = max(alpha, max_eval)
-            print("depth", depth)
-            print("max_eval", max_eval)
-            print("best_move", best_move)
-            print("alpha", alpha, "beta", beta)
-            
-        else:
-            for move in ordered_moves:
-                board.push(move)
-                repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-                eval, _ = minimax_parallel_2(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
-                board.pop()
-                if eval > max_eval:
-                    max_eval = eval
-                    best_move = move
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
-
-        # Add the current game state and its evaluation to the transposition table
-        if max_eval <= alpha:
-            flag = "upper_bound"
-        elif max_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": max_eval, "ancient": len(transposition_table), "best_move": best_move}
-
-        return(max_eval, best_move)
-
-    else:
-        min_eval = np.inf
-        ordered_moves = order_moves(board, transposition_table)
-
-        if depth == 1:
-            # get number of cpu cores available
-            num_processes = mp.cpu_count()
-    
-            # use multiprocessing to parallelize the minimax algorithm at depth 1
-            with mp.Pool(processes=num_processes) as pool:                
-                evaluate_boards_parallel_with_args = partial(evaluate_boards_parallel, board.copy(), depth - 1, hash_value, transposition_table, jit_compilation)
-                results = list(pool.imap(evaluate_boards_parallel_with_args, ordered_moves))
-    
-            min_eval, best_move = min(results, key=lambda x: x[0])
-            beta = min(beta, min_eval)
-            print("depth", depth)
-            print("min_eval", min_eval)
-            print("best_move", best_move)
-            print("alpha", alpha, "beta", beta)
-
-        else:
-            for move in ordered_moves:
-                board.push(move)
-                repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-                eval, _ = minimax_parallel_2(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
-                board.pop()
-                if eval < min_eval:
-                    min_eval = eval
-                    best_move = move
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break
-
-        # Store the evaluation, best move, and flag in the transposition table
-        if min_eval <= alpha:
-            flag = "upper_bound"
-        elif min_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
-
-        return (min_eval, best_move)
-    
-def minimax_parallel_3(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, jit_compilation, best_move = None, verbose_minimax = False):
-    """
-    Minimax algorithm with alpha-beta pruning, transposition table and move ordering
-    Args:
-        board (chess.Board): chess board
-        model (keras.model): CNN model
-        depth (int): depth of the search tree
-        alpha (float): alpha value for alpha-beta pruning
-        beta (float): beta value for alpha-beta pruning
-        maximizing_player (bool): True if AI is playing, False if player is playing
-        transposition_table (dict): transposition table
-        best_move (chess.Move): best move
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        float: evaluation of the board
-        chess.Move: best move
-    """
-    # print("alpha", alpha, "beta", beta)
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
-
-    # # Check if this position is already in the transposition table
-    hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
-    if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
-        entry = transposition_table[hash_value]
-        # print("hash_value", hash_value)
-        # print("transposition_table[hash_value]", transposition_table[hash_value])
-        # Check if the stored depth is greater than or equal to the current depth
-        if entry["depth"] >= depth:
-            # Use the stored evaluation and best move
-            if entry["flag"] == "exact":
-                return entry["eval"], entry["best_move"]
-            elif entry["flag"] == "lower_bound":
-                alpha = max(alpha, entry["eval"])
-            elif entry["flag"] == "upper_bound":
-                beta = min(beta, entry["eval"])
-            if alpha >= beta:
-                return entry["eval"], entry["best_move"]
-
-    if depth == 0 or board.is_game_over() or repetition:
-        prediction = ai_board_score_pred_parallel(board.copy(), jit_compilation)
-        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
-        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
-        return(prediction, None)
-
-    if maximizing_player:
-        max_eval = -np.inf
-        ordered_moves = order_moves(board, transposition_table)
-        if verbose_minimax == True:
-            # ordered_moves = tqdm(ordered_moves)
-            # get number of cpu cores available
-            num_processes = mp.cpu_count()
-
-            ordered_moves = [ordered_moves[i:i+num_processes] for i in range(0, len(ordered_moves), num_processes)]
-
-            for ordered_moves_chunk in ordered_moves:
-                # use multiprocessing to parallelize the minimax algorithm at depth 1
-                with mp.Pool(processes=num_processes) as pool:
-                    minimax_chunk_with_args = partial(minimax_chunk, board.copy(), model, depth, alpha, beta, maximizing_player, transposition_table, jit_compilation, best_move)
-                    results = tqdm(list(pool.imap(minimax_chunk_with_args, ordered_moves_chunk)), total = ordered_moves_chunk)
-        
-                max_eval_chunk, best_move_chunk = max(results, key=lambda x: x[0])
-                if max_eval_chunk > max_eval:
-                    max_eval = max_eval_chunk
-                    best_move = best_move_chunk
-                alpha = max(alpha, max_eval_chunk)
-            print("depth", depth)
-            print("max_eval", max_eval)
-            print("best_move", best_move)
-            print("alpha", alpha, "beta", beta)
-            exit()
-
-        else:
-            for move in ordered_moves:
-                board.push(move)
-                repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-                eval, _ = minimax_parallel_3(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
-                board.pop()
-                if eval > max_eval:
-                    max_eval = eval
-                    best_move = move
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
-
-        # Add the current game state and its evaluation to the transposition table
-        if max_eval <= alpha:
-            flag = "upper_bound"
-        elif max_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": max_eval, "ancient": len(transposition_table), "best_move": best_move}
-
-        return(max_eval, best_move)
-
-    else:
-        min_eval = np.inf
-        ordered_moves = order_moves(board, transposition_table)
-
-        if depth == 1:
-            # get number of cpu cores available
-            num_processes = mp.cpu_count()
-    
-            # use multiprocessing to parallelize the minimax algorithm at depth 1
-            with mp.Pool(processes=num_processes) as pool:                
-                evaluate_boards_parallel_with_args = partial(evaluate_boards_parallel, board.copy(), depth - 1, hash_value, transposition_table, jit_compilation)
-                results = list(pool.imap(evaluate_boards_parallel_with_args, ordered_moves))
-    
-            min_eval, best_move = min(results, key=lambda x: x[0])
-            beta = min(beta, min_eval)
-            print("depth", depth)
-            print("min_eval", min_eval)
-            print("best_move", best_move)
-            print("alpha", alpha, "beta", beta)
-
-        else:
-            for move in ordered_moves:
-                board.push(move)
-                repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-                eval, _ = minimax_parallel_3(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
-                board.pop()
-                if eval < min_eval:
-                    min_eval = eval
-                    best_move = move
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break
-
-        # Store the evaluation, best move, and flag in the transposition table
-        if min_eval <= alpha:
-            flag = "upper_bound"
-        elif min_eval >= beta:
-            flag = "lower_bound"
-        else:
-            flag = "exact"
-        transposition_table[hash_value] = {"depth": depth, "flag": flag, "eval": min_eval, "ancient": len(transposition_table), "best_move": best_move}
-
-        return (min_eval, best_move)
-
-def evaluate_boards_parallel(board, depth, hash_value, transposition_table, jit_compilation, move):
-    board.push(move)
-    # repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-    prediction = ai_board_score_pred_parallel(board.copy(), jit_compilation)
-    transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
-    board.pop()
-    return(prediction, move)
-
-def minimax_chunk(board, model, depth, alpha, beta, maximizing_player, transposition_table, jit_compilation, best_move, move):
-    board.push(move)
-    repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-    eval, _ = minimax_parallel_3(board.copy(), model, depth - 1, alpha, beta, maximizing_player, transposition_table, repetition_update, jit_compilation, best_move, verbose_minimax = False)
-    board.pop()
-
-    return(eval, move)
-
-def get_ai_move(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
+def get_ai_move(board, depth, maximizing_player, transposition_table, model, jit_compilation, multiprocessing):
     """
     Get the best move for the AI
     Args:
@@ -867,17 +461,32 @@ def get_ai_move(board, model, depth, transposition_table, jit_compilation, verbo
         model (keras.Model): neural network model
         depth (int): depth of the minimax algorithm
         transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
     Returns:
         chess.Move: best move
         float: evaluation of the board
     """
     repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, jit_compilation = jit_compilation, best_move = None, verbose_minimax = verbose_minimax)
-
+    max_eval, max_move = minimax(
+        board = board.copy(), 
+        depth = depth, 
+        alpha = -np.inf, 
+        beta = np.inf, 
+        maximizing_player = maximizing_player, 
+        transposition_table = transposition_table, 
+        repetition = repetition, 
+        multiprocessing = multiprocessing, 
+        jit_compilation = jit_compilation, 
+        best_move = None, 
+        model = model, 
+        model_name = None, 
+        root_node = True
+    )
+    
     return(max_move, max_eval)
 
-def get_ai_move_parallel(board, depth, transposition_table, jit_compilation, verbose_minimax, maximizing_player, move):
+
+def get_ai_move_mp(board, depth, dict_mp, maximizing_player, transposition_table, model_name, jit_compilation, multiprocessing, move):
     """
     Get the best move for the AI
     Args:
@@ -885,75 +494,7 @@ def get_ai_move_parallel(board, depth, transposition_table, jit_compilation, ver
         model (keras.Model): neural network model
         depth (int): depth of the minimax algorithm
         transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        chess.Move: best move
-        float: evaluation of the board
-    """
-    alpha = - np.inf
-    beta = np.inf
-    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-
-    board.push(move)
-    maximizing_player = not maximizing_player
-    eval = eval = minimax_parallel(
-        board, 
-        depth - 1, 
-        alpha, 
-        beta, 
-        maximizing_player, 
-        transposition_table, 
-        repetition, 
-        jit_compilation, 
-        verbose_minimax = verbose_minimax)
-    board.pop()
-    return move, eval
-
-def get_ai_move_parallel_2(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
-    """
-    Get the best move for the AI
-    Args:
-        board (chess.Board): chess board
-        model (keras.Model): neural network model
-        depth (int): depth of the minimax algorithm
-        transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        chess.Move: best move
-        float: evaluation of the board
-    """
-    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-    max_eval, max_move = minimax_parallel_2(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, jit_compilation = jit_compilation, best_move = None, verbose_minimax = verbose_minimax)
-
-    return(max_move, max_eval)
-
-def get_ai_move_parallel_3(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
-    """
-    Get the best move for the AI
-    Args:
-        board (chess.Board): chess board
-        model (keras.Model): neural network model
-        depth (int): depth of the minimax algorithm
-        transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
-    Returns:
-        chess.Move: best move
-        float: evaluation of the board
-    """
-    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-    max_eval, max_move = minimax_parallel_3(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, jit_compilation = jit_compilation, best_move = None, verbose_minimax = verbose_minimax)
-
-    return(max_move, max_eval)
-
-def get_ai_move_parallel_4(board, depth, alpha, beta, transposition_table, jit_compilation, verbose_minimax, maximizing_player, move):
-    """
-    Get the best move for the AI
-    Args:
-        board (chess.Board): chess board
-        model (keras.Model): neural network model
-        depth (int): depth of the minimax algorithm
-        transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
     Returns:
         chess.Move: best move
         float: evaluation of the board
@@ -961,39 +502,35 @@ def get_ai_move_parallel_4(board, depth, alpha, beta, transposition_table, jit_c
     repetition = board.is_seventyfive_moves() or board.is_repetition(3)
 
     board.push(move)
-    maximizing_player = not maximizing_player
-    eval = eval = minimax_parallel(
-        board, 
-        depth - 1, 
-        alpha, 
-        beta, 
-        maximizing_player, 
-        transposition_table, 
-        repetition, 
-        jit_compilation, 
-        verbose_minimax = verbose_minimax)
+    eval, _ = minimax(
+        board = board.copy(), 
+        depth = depth - 1, 
+        alpha = dict_mp["alpha"], 
+        beta = dict_mp["beta"], 
+        maximizing_player = not maximizing_player, 
+        transposition_table = transposition_table, 
+        repetition = repetition, 
+        multiprocessing = multiprocessing, 
+        jit_compilation = jit_compilation, 
+        best_move = None, 
+        model = None, 
+        model_name = model_name, 
+        root_node = False
+    )
+
     board.pop()
-    return move, eval
+    
+    if maximizing_player:
+        if eval > dict_mp["max_eval"]:
+            dict_mp["max_eval"] = eval
+            dict_mp["best_move"] = move
+        dict_mp["alpha"] = max(dict_mp["alpha"], eval)
+    else:
+        if eval < dict_mp["min_eval"]:
+            dict_mp["min_eval"] = eval
+            dict_mp["best_move"] = move
+        dict_mp["beta"] = min(dict_mp["beta"], eval)
 
-# def get_ai_move_parallel(board, model, depth, transposition_table, jit_compilation, verbose_minimax):
-#     max_move = None
-#     max_eval = -np.inf
-#     evals = []
-#     start = time.time()
-#     for valid_move in list(board.legal_moves):
-#         board.push(valid_move)
-#         # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-#         eval = dask.delayed(minimax)(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
-#         board.pop()
-#         evals.append(eval)
-#     with ProgressBar():
-#         evals = dask.compute(*evals, num_workers = 3)
-#     argmax = np.argmax(evals)
-#     max_eval = evals[argmax]
-#     max_move = list(board.legal_moves)[argmax]
-
-#     print("time needed", time.time() - start)
-#     return(max_move, max_eval)
 
 def save_board_png(board, game_name, counter):
     """
