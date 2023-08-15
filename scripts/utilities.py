@@ -309,8 +309,6 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
         float: evaluation of the board
         chess.Move: best move
     """
-    if depth == 2:
-        print("best move", best_move)
     # print("alpha", alpha, "beta", beta)
     if depth < 0 or type(depth) != int:
         raise ValueError("Depth needs to be int and greater than 0")
@@ -346,20 +344,30 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
     if maximizing_player:
         max_eval = -np.inf
 
-        # # Null-move pruning: skip AI's turn and evaluate
-        # if depth >= 3:
-        #     print("depth", depth)
-        #     print("Null-move pruning")
-        #     null_move_reduction = 2  # Depth reduction for null-move
-        #     board.push(chess.Move.null())  # Apply null move
-        #     null_move_eval, _ = minimax(board.copy(), model, depth - 1 - null_move_reduction, -beta, -beta + 1, False, transposition_table, repetition, jit_compilation, best_move, root_node=False)
-        #     board.pop()  # Undo null move
+        # Null-move pruning: skip AI's turn and evaluate
+        if depth >= 3 and not board.is_check():
+            null_move_reduction = 2  # Depth reduction for null-move
+            board.push(chess.Move.null())  # Apply null move
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            null_move_eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1 - null_move_reduction, 
+                alpha = -beta, 
+                beta = beta + 1, 
+                maximizing_player = False, 
+                transposition_table = transposition_table, 
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
+            board.pop()  # Undo null move
 
-        #     print("Null-move eval:", null_move_eval)
-        #     print("Beta:", beta)
-        #     if null_move_eval >= beta:
-        #         print("Null-move pruning successful")
-        #         return (null_move_eval, None)
+            if null_move_eval >= beta:
+                return (null_move_eval, None)
 
         ordered_moves = order_moves(board, transposition_table)
         if root_node == True:
@@ -522,7 +530,8 @@ def get_ai_move_mp(board, depth, dict_mp, maximizing_player, transposition_table
             dict_mp["min_eval"] = eval
             dict_mp["best_move"] = move
         dict_mp["beta"] = min(dict_mp["beta"], eval)
-    
+
+
 def save_board_png(board, game_name, counter):
     """
     Saves the current board as png in games/{game_name}/board{counter}.png
