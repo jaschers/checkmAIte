@@ -82,6 +82,8 @@ class ChessApp:
         # self.board = chess.Board("8/8/8/5K2/8/8/4kp1Q/8 w - - 0 4")
         # self.board = chess.Board("r4r2/p1p2pkp/1pn2np1/8/2P1p3/3qP3/PPQN1PPP/RN2K2R w KQ - 2 16")
         # self.board = chess.Board("rnbq1rk1/ppp1ppbp/3p1np1/8/3PP3/2N4P/PPP1BPP1/R1BQK1NR w KQ - 1 6")
+        self.board = chess.Board("8/k2r4/p7/2b1Bp2/P3p3/qp4R1/4QP2/1K6 b - - 0 1")
+
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
         self.button.pack()
@@ -93,6 +95,7 @@ class ChessApp:
         self.ai_accuracy = []
 
         self.setup_save()
+        self.ai_move()
 
         if args.colour == "w":
             pass

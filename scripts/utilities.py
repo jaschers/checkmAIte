@@ -331,16 +331,31 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
             if alpha >= beta:
                 return entry["eval"], entry["best_move"]
 
+    # print("depth", depth)
+    # print("board", board.fen())
+    # if depth == 0 and board.is_check() and not board.is_repetition(2) and not board.is_game_over():
+    #     print("board", board.fen())
+    #     depth += 2
+
     if depth == 0 or board.is_game_over() or repetition:
+        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
+        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
+        # Add the current game state and its evaluation to the transposition table
         if multiprocessing == 1:
             prediction = ai_board_score_pred_parallel(board.copy(), model_name, jit_compilation)
         else:
             prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
 
-        # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
-        # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": best_move}
+        # if board is a checkmate, give it a better score if depth is lower
+        if np.abs(prediction) > score_max - 3000:
+            if maximizing_player:
+                sign = -1
+            else:
+                sign = 1
+            prediction = np.sign(prediction) * score_max + sign * depth
+        else:
+            # only store non-checkmates in transposition table 
+            transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": best_move}
         return(prediction, None)
 
     if maximizing_player:
@@ -377,6 +392,11 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+
+            # if board.is_check() and not repetition_update and not board.is_game_over():
+            #     print("Board is in check")
+            #     depth =+ 1
+
             eval, _ = minimax(
                 board = board.copy(), 
                 depth = depth - 1, 
@@ -420,6 +440,11 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+
+            # if board.is_check() and not repetition_update and not board.is_game_over():
+            #     print("Board is in check")
+            #     depth =+ 1
+
             eval, _ = minimax(
                 board = board.copy(), 
                 depth = depth - 1, 
