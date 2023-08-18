@@ -62,6 +62,9 @@ class ChessApp:
             self.transposition_table = self.manager.dict()
         else:
             self.transposition_table = {}
+            self.model = models.load_model(f"model/{args.model_name}") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+            if args.jit_compilation == 1:
+                self.model = tf.function(self.model, jit_compile=True)
 
         # Create canvas for displaying chess board
         self.width, self.height = 390, 390
@@ -85,10 +88,6 @@ class ChessApp:
         self.draw_board()
         if args.sound == 1:
             playsound("sounds/start.m4a")
-
-        self.model = models.load_model(f"model/{args.model_name}") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
-        if args.jit_compilation == 1:
-            self.model = tf.function(self.model, jit_compile=True)
 
         # empty list for ai accuracy
         self.ai_accuracy = []
@@ -282,9 +281,10 @@ class ChessApp:
                     pass
 
             best_move_ai = dict_mp["best_move"]
+            prediction_score_ai_move = dict_mp["max_eval"]
 
         else:
-            best_move_ai, _ = get_ai_move(
+            best_move_ai, prediction_score_ai_move = get_ai_move(
                 board = self.board.copy(),
                 depth = args.depth,
                 maximizing_player = maximizing_player_ai,
@@ -308,8 +308,8 @@ class ChessApp:
             # push best stockfish move
             self.board.push(best_move_stockfish)
 
-            # determine predicted ai score of stockfish move
-            prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+            # # determine predicted ai score of stockfish move
+            # prediction_score_stockfish_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
 
             # reset last move
             self.board.pop()
@@ -317,8 +317,8 @@ class ChessApp:
             # push best ai move
             self.board.push(best_move_ai)
             
-            # determine predicted ai score of ai move
-            prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
+            # # determine predicted ai score of ai move
+            # prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
 
             # determine stockfish score of ai move
             analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
@@ -328,7 +328,7 @@ class ChessApp:
 
             self.logger.info("AI / SF best move: %s / %s", best_move_ai, best_move_stockfish)
             self.logger.info("AI / SF pred. score (ai move): %s / %s", np.round(prediction_score_ai_move), stockfish_score_ai_move)
-            self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
+            # self.logger.info("AI / SF pred. score (sf move): %s / %s", np.round(prediction_score_stockfish_move), stockfish_score_stockfish_move)
             self.logger.info("SF top 3 moves: %s", stockfish_moves_sorted_by_score[:3])
             self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
             self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
