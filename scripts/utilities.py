@@ -261,9 +261,11 @@ def ai_board_score_pred(board, model, jit_compilation):
         prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
-def load_model(model_name):
+def load_model(model_name, jit_compilation):
     global model
     model = models.load_model(f"model/{model_name}")
+    if jit_compilation == 1:
+        model = tf.function(model, jit_compile=True)
 
 def ai_board_score_pred_parallel(board, model_name, jit_compilation):
     """
@@ -279,7 +281,7 @@ def ai_board_score_pred_parallel(board, model_name, jit_compilation):
     # Load the model if it's not already loaded
     if model is None:
         # start = time.time()
-        load_model(model_name)
+        load_model(model_name, jit_compilation)
         # print("Time needed to load model:", time.time() - start)
 
     board_3d_int = [get_board_total(board.copy())]
@@ -344,30 +346,30 @@ def minimax(board, depth, alpha, beta, maximizing_player, transposition_table, r
     if maximizing_player:
         max_eval = -np.inf
 
-        # Null-move pruning: skip AI's turn and evaluate
-        if depth >= 3 and not board.is_check():
-            null_move_reduction = 2  # Depth reduction for null-move
-            board.push(chess.Move.null())  # Apply null move
-            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            null_move_eval, _ = minimax(
-                board = board.copy(), 
-                depth = depth - 1 - null_move_reduction, 
-                alpha = -beta, 
-                beta = beta + 1, 
-                maximizing_player = False, 
-                transposition_table = transposition_table, 
-                repetition = repetition_update, 
-                multiprocessing = multiprocessing, 
-                jit_compilation = jit_compilation, 
-                best_move = best_move, 
-                model = model, 
-                model_name = model_name, 
-                root_node = False
-            )
-            board.pop()  # Undo null move
+        # # Null-move pruning: skip AI's turn and evaluate
+        # if depth >= 3 and not board.is_check():
+        #     null_move_reduction = 2  # Depth reduction for null-move
+        #     board.push(chess.Move.null())  # Apply null move
+        #     repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+        #     null_move_eval, _ = minimax(
+        #         board = board.copy(), 
+        #         depth = depth - 1 - null_move_reduction, 
+        #         alpha = -beta, 
+        #         beta = beta + 1, 
+        #         maximizing_player = False, 
+        #         transposition_table = transposition_table, 
+        #         repetition = repetition_update, 
+        #         multiprocessing = multiprocessing, 
+        #         jit_compilation = jit_compilation, 
+        #         best_move = best_move, 
+        #         model = model, 
+        #         model_name = model_name, 
+        #         root_node = False
+        #     )
+        #     board.pop()  # Undo null move
 
-            if null_move_eval >= beta:
-                return (null_move_eval, None)
+        #     if null_move_eval >= beta:
+        #         return (null_move_eval, None)
 
         ordered_moves = order_moves(board, transposition_table)
         if root_node == True:
