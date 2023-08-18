@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
 parser.add_argument("-na", "--model_name", type = str, metavar = "-", default = "model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5", help = "Name of the neural network model located in the model/ directory, default: model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5")
-parser.add_argument("-c", "--colour", type = str, metavar = "-", default = "w", help = "Colour you would like to play with (w or b), default: w")
+parser.add_argument("-c", "--colour", type = str, metavar = "-", default = "b", help = "Colour you would like to play with (w or b), default: b")
 parser.add_argument("-d", "--depth", type = int, metavar = "-", default = 3, help = "Depth of the minimax algorithm, default: 3")
 parser.add_argument("-v", "--verbose", type = int, metavar = "-", default = 1, help = "Verbose 0 (off) or 1 (on), default: 1")
 parser.add_argument("-s", "--save", type = int, metavar = "-", default = 0, help = "Save 0 (no) or 1 (yes), default: 0")
@@ -44,6 +44,10 @@ parser.add_argument("-mp", "--multiprocessing", type = int, metavar = "-", defau
 
 
 args = parser.parse_args()
+if args.colour == "w":
+    maximizing_player_ai = False
+else:
+    maximizing_player_ai = True
 ##########################################################################################
 
 class ChessApp:
@@ -91,7 +95,10 @@ class ChessApp:
 
         self.setup_save()
 
-        self.ai_move()
+        if args.colour == "w":
+            pass
+        else:
+            self.ai_move()
 
         # Bind mouse events to canvas
         self.canvas.bind("<Button-1>", self.on_click)
@@ -246,7 +253,6 @@ class ChessApp:
         # get all valid moves
         board_fen_previous = self.board.fen()
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
-        maximizing_player = True
 
         if args.multiprocessing == 1:
             ordered_moves = order_moves(self.board.copy(), self.transposition_table)
@@ -255,6 +261,7 @@ class ChessApp:
             dict_mp["alpha"] = -np.inf
             dict_mp["beta"] = np.inf
             dict_mp["max_eval"] = -np.inf
+            dict_mp["min_eval"] = np.inf
             dict_mp["best_move"] = None
 
             with mp.Pool(processes=self.num_processes) as pool:
@@ -264,7 +271,7 @@ class ChessApp:
                     self.board.copy(), 
                     args.depth, 
                     dict_mp,
-                    maximizing_player,
+                    maximizing_player_ai,
                     self.transposition_table, 
                     args.model_name,
                     args.jit_compilation,
@@ -280,7 +287,7 @@ class ChessApp:
             best_move_ai, _ = get_ai_move(
                 board = self.board.copy(),
                 depth = args.depth,
-                maximizing_player = maximizing_player,
+                maximizing_player = maximizing_player_ai,
                 transposition_table = self.transposition_table,
                 model = self.model,
                 jit_compilation = args.jit_compilation,
