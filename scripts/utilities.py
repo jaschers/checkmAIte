@@ -601,7 +601,7 @@ def save_board_gif(boards_png, game_name):
         im = ax.imshow(board_png)
         ims.append([im])
     ani = animation.ArtistAnimation(fig, ims, interval = 1000)
-    ani.save(f"games/{game_name}/board.gif")
+    ani.save(f"games/{game_name}/game.gif")
 
     os.system(f"rm games/{game_name}/*.png")
 
@@ -620,7 +620,7 @@ def get_valid_moves(board):
     valid_moves_str = [valid_moves[i].uci() for i in range(len(valid_moves))]
     return(valid_moves, valid_moves_str)
 
-def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai, depth):
+def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai, depth, colour_player):
     """
     Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
 
@@ -640,7 +640,10 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai, depth)
     for i in range(len(valid_moves)):
         board.push(valid_moves[i])
         result = engine.analyse(board, chess.engine.Limit(depth = depth - 1))
-        stockfish_score = result["score"].white().score(mate_score = score_max)
+        if colour_player == "b":
+            stockfish_score = result["score"].white().score(mate_score = score_max)
+        else:
+            stockfish_score = result["score"].black().score(mate_score = score_max)
         stockfish_scores.append(stockfish_score)
 
         board.pop()
