@@ -17,6 +17,8 @@ literature/
 digital_secrets/
 visuals/development
 scripts/model_speed.py
+endgame/syzygy/
+endgame/gaviota/
 
 .DS_Store
 .git/

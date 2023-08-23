@@ -3,6 +3,7 @@ import chess.svg
 import io
 import cairosvg
 import chess.engine
+import chess.pgn
 from PIL import Image, ImageTk
 import os
 import time
@@ -14,6 +15,8 @@ from playsound import playsound
 from keras import models
 import multiprocessing as mp
 from functools import partial
+import sys
+import chess.gaviota
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -63,6 +66,8 @@ class ChessApp:
         else:
             self.transposition_table = {}
             self.model = models.load_model(f"model/{args.model_name}") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+            # load engame gaviota tablebase
+            self.tablebase = chess.gaviota.open_tablebase("endgame/gaviota/data/")
             if args.jit_compilation == 1:
                 self.model = tf.function(self.model, jit_compile=True)
 
@@ -73,16 +78,16 @@ class ChessApp:
         self.canvas = tk.Canvas(master, width = self.width, height = self.height)
         self.canvas.pack()
 
-        # Initialize chess engine
-        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-
         # Draw initial chess board
         self.board = chess.Board()
         # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 5")
         # self.board = chess.Board("8/8/8/5K2/8/8/4kp1Q/8 w - - 0 4")
         # self.board = chess.Board("r4r2/p1p2pkp/1pn2np1/8/2P1p3/3qP3/PPQN1PPP/RN2K2R w KQ - 2 16")
         # self.board = chess.Board("rnbq1rk1/ppp1ppbp/3p1np1/8/3PP3/2N4P/PPP1BPP1/R1BQK1NR w KQ - 1 6")
-        # self.board = chess.Board("8/k2r4/p7/2b1Bp2/P3p3/qp4R1/4QP2/1K6 b - - 0 1")
+        # # self.board = chess.Board("8/k2r4/p7/2b1Bp2/P3p3/qp4R1/4QP2/1K6 b - - 0 1")
+        # self.board = chess.Board("8/2B5/8/8/8/R7/7Q/1k5K w - - 5 54")
+        # self.board = chess.Board("8/6k1/8/8/8/6PP/6K1/8 w - - 0 1")
+        # self.board = chess.Board("8/8/8/8/8/8/K1k5/4r3 w - - 2 2")
 
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
@@ -90,12 +95,14 @@ class ChessApp:
         self.draw_board()
         if args.sound == 1:
             playsound("sounds/start.m4a")
+        if args.save == 1:
+            self.game = chess.pgn.Game()
 
         # empty list for ai accuracy
         self.ai_accuracy = []
 
         self.setup_save()
-        # self.ai_move()
+        # # self.ai_move()
 
         if args.colour == "w":
             pass
@@ -178,8 +185,19 @@ class ChessApp:
 
 
             if self.move in self.board.legal_moves:
+                if args.save == 1:
+                    if not hasattr(self, 'node'):
+                        self.node = self.game.add_variation(chess.Move.from_uci(self.move.uci()))
+                        print("has no attr")
+                    else:
+                        self.node = self.node.add_variation(chess.Move.from_uci(self.move.uci()))
+                        print("has attr")
+                    
+
                 self.board.push(self.move)
                 self.draw_board()
+                print("Player move: ", self.move)
+
                 if args.sound == 1:
                     self.play_sound(move = self.move)
                 
@@ -229,6 +247,14 @@ class ChessApp:
             move_uci = self.move.uci()
             move_uci += inp
             self.move = chess.Move.from_uci(move_uci)
+
+            if args.save == 1:
+                if not hasattr(self, 'node'):
+                    self.node = self.game.add_variation(chess.Move.from_uci(self.move.uci()))
+                else:
+                    self.node = self.node.add_variation(chess.Move.from_uci(self.move.uci()))
+                
+
             self.board.push(self.move)
             self.draw_board()
             if args.sound == 1:
@@ -272,9 +298,10 @@ class ChessApp:
                     get_ai_move_mp, 
                     self.board.copy(), 
                     args.depth, 
+                    args.depth,
                     dict_mp,
                     maximizing_player_ai,
-                    self.transposition_table, 
+                    self.transposition_table,
                     args.model_name,
                     args.jit_compilation,
                     args.multiprocessing, 
@@ -290,12 +317,23 @@ class ChessApp:
             best_move_ai, prediction_score_ai_move = get_ai_move(
                 board = self.board.copy(),
                 depth = args.depth,
+                depth_max = args.depth,
                 maximizing_player = maximizing_player_ai,
                 transposition_table = self.transposition_table,
+                tablebase = self.tablebase,
                 model = self.model,
                 jit_compilation = args.jit_compilation,
                 multiprocessing = args.multiprocessing
             )
+
+        if args.save == 1:
+            if not hasattr(self, 'node'):
+                self.node = self.game.add_variation(chess.Move.from_uci(best_move_ai.uci()))
+                print("has no attr")
+            else:
+                self.node = self.node.add_variation(chess.Move.from_uci(best_move_ai.uci()))
+                print("has attr")
+            
 
         self.board.push(best_move_ai)
         
@@ -306,7 +344,7 @@ class ChessApp:
         # print results
         if args.verbose == 1:
             self.board.pop()    
-            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth)
+            best_move_stockfish, stockfish_score_stockfish_move, stockfish_moves_sorted_by_score, index = get_stockfish_move(self.board.copy(), valid_moves, valid_moves_str, best_move_ai, args.depth, args.colour)
 
             # push best stockfish move
             self.board.push(best_move_stockfish)
@@ -336,9 +374,10 @@ class ChessApp:
             self.logger.info("SF accuracy of AI's best move: %s", f"{index + 1} / {len(stockfish_moves_sorted_by_score)} ({np.round(self.ai_accuracy[-1], 1)} %)")
             self.logger.info("AI's mean SF accuracy: %s %%", np.round(np.mean(self.ai_accuracy), 1))
             self.logger.info("Lentgh transposition table: %s", len(self.transposition_table))
+            self.logger.info(f"Memory usage of transposition table: {np.round(sys.getsizeof(self.transposition_table) * 1e-6, 3)} MB")
             self.logger.info("Previous board FEN: %s", board_fen_previous)
             self.logger.info("Board FEN: %s", self.board.fen())
-            self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
+            # self.logger.info("Memory usage: %s GB", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 3, 1))
             
         else:
             self.logger.info("AI move: %s", best_move_ai)
@@ -388,6 +427,11 @@ class ChessApp:
 
                 save_board_gif(boards_png = boards_png, game_name = self.dt_string)
                 print("Game saved as gif!")
+                
+                pgn_file = open(f"games/{self.dt_string}/game.pgn", "w", encoding="utf-8")
+                exporter = chess.pgn.FileExporter(pgn_file)
+                self.game.accept(exporter)
+                print("Game saved as pgn!")
 
             exit()
     
@@ -396,8 +440,8 @@ class ChessApp:
         board_previous = self.board.copy()
         board_previous.pop()
 
-        if board_current.is_checkmate() or board_current.is_stalemate() or board_current.can_claim_draw():
-                playsound("sounds/end.m4a")
+        if board_current.is_checkmate() or board_current.is_stalemate() or board_current.is_repetition(3):
+            playsound("sounds/end.m4a")
         elif board_current.is_check():
             playsound("sounds/check.mp3")
         elif board_previous.is_capture(move):
