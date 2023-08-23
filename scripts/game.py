@@ -16,6 +16,7 @@ from keras import models
 import multiprocessing as mp
 from functools import partial
 import sys
+import chess.gaviota
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -65,6 +66,8 @@ class ChessApp:
         else:
             self.transposition_table = {}
             self.model = models.load_model(f"model/{args.model_name}") # model/model_40_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r450_exp1.h5
+            # load engame gaviota tablebase
+            self.tablebase = chess.gaviota.open_tablebase("endgame/gaviota/data/")
             if args.jit_compilation == 1:
                 self.model = tf.function(self.model, jit_compile=True)
 
@@ -75,9 +78,6 @@ class ChessApp:
         self.canvas = tk.Canvas(master, width = self.width, height = self.height)
         self.canvas.pack()
 
-        # Initialize chess engine
-        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-
         # Draw initial chess board
         self.board = chess.Board()
         # self.board = chess.Board("8/8/8/8/5K2/8/5p1Q/4k3 w - - 2 5")
@@ -85,6 +85,9 @@ class ChessApp:
         # self.board = chess.Board("r4r2/p1p2pkp/1pn2np1/8/2P1p3/3qP3/PPQN1PPP/RN2K2R w KQ - 2 16")
         # self.board = chess.Board("rnbq1rk1/ppp1ppbp/3p1np1/8/3PP3/2N4P/PPP1BPP1/R1BQK1NR w KQ - 1 6")
         # self.board = chess.Board("8/k2r4/p7/2b1Bp2/P3p3/qp4R1/4QP2/1K6 b - - 0 1")
+        # self.board = chess.Board("8/2B5/8/8/8/R7/7Q/1k5K w - - 5 54")
+        # self.board = chess.Board("8/6k1/8/8/8/6PP/6K1/8 w - - 0 1")
+        # self.board = chess.Board("8/8/8/8/8/8/K1k5/4r3 w - - 2 2")
 
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
@@ -295,9 +298,10 @@ class ChessApp:
                     get_ai_move_mp, 
                     self.board.copy(), 
                     args.depth, 
+                    args.depth,
                     dict_mp,
                     maximizing_player_ai,
-                    self.transposition_table, 
+                    self.transposition_table,
                     args.model_name,
                     args.jit_compilation,
                     args.multiprocessing, 
@@ -313,8 +317,10 @@ class ChessApp:
             best_move_ai, prediction_score_ai_move = get_ai_move(
                 board = self.board.copy(),
                 depth = args.depth,
+                depth_max = args.depth,
                 maximizing_player = maximizing_player_ai,
                 transposition_table = self.transposition_table,
+                tablebase = self.tablebase,
                 model = self.model,
                 jit_compilation = args.jit_compilation,
                 multiprocessing = args.multiprocessing
@@ -434,8 +440,8 @@ class ChessApp:
         board_previous = self.board.copy()
         board_previous.pop()
 
-        if board_current.is_checkmate() or board_current.is_stalemate() or board_current.can_claim_draw():
-                playsound("sounds/end.m4a")
+        if board_current.is_checkmate() or board_current.is_stalemate() or board_current.is_repetition(3):
+            playsound("sounds/end.m4a")
         elif board_current.is_check():
             playsound("sounds/check.mp3")
         elif board_previous.is_capture(move):
