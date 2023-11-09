@@ -28,3 +28,5 @@ data.csv
 all-epds/
 endgame/.*
 endgame/Gaviota*
+visuals/.*
+visuals/old
