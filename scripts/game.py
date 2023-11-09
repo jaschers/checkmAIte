@@ -88,6 +88,7 @@ class ChessApp:
         # self.board = chess.Board("8/2B5/8/8/8/R7/7Q/1k5K w - - 5 54")
         # self.board = chess.Board("8/6k1/8/8/8/6PP/6K1/8 w - - 0 1")
         # self.board = chess.Board("8/8/8/8/8/8/K1k5/4r3 w - - 2 2")
+        self.board = chess.Board("8/4b3/p3p3/P1p1P3/5K1p/3k4/8/8 w - - 2 44")
 
         # Create button to undo move
         self.button = tk.Button(master, text="Undo move", command=self.undo_move)
@@ -191,7 +192,6 @@ class ChessApp:
                         print("has no attr")
                     else:
                         self.node = self.node.add_variation(chess.Move.from_uci(self.move.uci()))
-                        print("has attr")
                     
 
                 self.board.push(self.move)
@@ -278,6 +278,12 @@ class ChessApp:
         Args:
             self (ChessApp): An instance of ChessApp.
         """
+
+        if self.is_endgame():
+            depth = args.depth + 1
+        else:
+            depth = args.depth
+
         # get all valid moves
         board_fen_previous = self.board.fen()
         valid_moves, valid_moves_str = get_valid_moves(self.board.copy())
@@ -297,8 +303,8 @@ class ChessApp:
                 get_ai_move_mp_with_args = partial(
                     get_ai_move_mp, 
                     self.board.copy(), 
-                    args.depth, 
-                    args.depth,
+                    depth, 
+                    depth,
                     dict_mp,
                     maximizing_player_ai,
                     self.transposition_table,
@@ -316,8 +322,8 @@ class ChessApp:
         else:
             best_move_ai, prediction_score_ai_move = get_ai_move(
                 board = self.board.copy(),
-                depth = args.depth,
-                depth_max = args.depth,
+                depth = depth,
+                depth_max = depth,
                 maximizing_player = maximizing_player_ai,
                 transposition_table = self.transposition_table,
                 tablebase = self.tablebase,
@@ -329,10 +335,8 @@ class ChessApp:
         if args.save == 1:
             if not hasattr(self, 'node'):
                 self.node = self.game.add_variation(chess.Move.from_uci(best_move_ai.uci()))
-                print("has no attr")
             else:
                 self.node = self.node.add_variation(chess.Move.from_uci(best_move_ai.uci()))
-                print("has attr")
             
 
         self.board.push(best_move_ai)
@@ -362,7 +366,7 @@ class ChessApp:
             # prediction_score_ai_move = ai_board_score_pred(self.board.copy(), self.model, args.jit_compilation)
 
             # determine stockfish score of ai move
-            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = 0))
+            analyse_stockfish = engine.analyse(self.board.copy(), chess.engine.Limit(depth = args.depth - 1))
             stockfish_score_ai_move = analyse_stockfish["score"].white().score(mate_score = score_max)
 
             self.ai_accuracy.append((1 - (index / len(stockfish_moves_sorted_by_score))) * 100)
@@ -450,6 +454,18 @@ class ChessApp:
             playsound("sounds/castle.mp3")
         else:
             playsound("sounds/move.mp3")
+
+    def is_endgame(self):
+        condition_white = sum(
+            1 for square, piece in self.board.piece_map().items() if piece.color == chess.WHITE 
+            and piece.piece_type != chess.PAWN
+            ) <= 3
+        condition_black = sum(
+            1 for square, piece in self.board.piece_map().items() if piece.color == chess.BLACK 
+            and piece.piece_type != chess.PAWN
+            ) <= 3
+        endgame = condition_white and condition_black
+        return(endgame)
         
 
 def main():

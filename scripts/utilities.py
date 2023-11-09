@@ -31,7 +31,7 @@ np.set_printoptions(threshold=sys.maxsize)
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
 
-# model = None
+model = None
 tablebase = None
 
 # get stockfish engine
