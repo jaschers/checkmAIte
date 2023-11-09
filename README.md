@@ -5,7 +5,7 @@
 CheckmAIte is a chess engine based on a convolutional neural network.
 
 ## Demo
-<img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/board.gif" width="500">
+<img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/board.gif" width="350">
 
 Here's a demo of the CheckmAIte (white) playing against a 1300 elo chess bot (black).
 
