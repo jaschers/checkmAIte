@@ -43,8 +43,8 @@ for run in range(number_runs):
     print(np.shape(table["board3d"][0]))
     # print(np.array(table["board3d (int)"][0]))
 
-    os.makedirs("data/3d/32_8_8_depth0_mm100_ms15000/", exist_ok = True)
+    os.makedirs("data/3d/30_8_8_depth0_mm100_ms15000/", exist_ok = True)
 
-    table.to_hdf(f"data/3d/32_8_8_depth0_mm100_ms15000/data{run}.h5", key = "table")
+    table.to_hdf(f"data/3d/30_8_8_depth0_mm100_ms15000/data{run}.h5", key = "table")
 
     end = time.time()

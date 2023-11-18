@@ -23,10 +23,16 @@ from PIL import Image, ImageTk
 import tkinter as tk
 import io
 import logging
+import multiprocessing as mp
+from functools import partial
+import chess.gaviota
 
 np.set_printoptions(threshold=sys.maxsize)
 
 stockfish_path = os.environ.get("STOCKFISHPATH")
+
+model = None
+tablebase = None
 
 # get stockfish engine
 stockfish_path = os.environ.get("STOCKFISHPATH")
@@ -191,12 +197,19 @@ def board_score(board, depth = 0):
     Returns:
         int: stockfish score of the input board
     """
-    score_dict = {"15000": 15000, "14999": 14000, "14998": 13000, "14997": 12000, "14996": 11000, "14995": 10000, "14994": 9000, "14993": 8000, "-15000": -15000, "-14999": -14000, "-14998": -13000, "-14997": -12000, "-14996": -11000, "-14995": -10000, "-14994": -9000, "-14993": -8000}
+    score_list = [14999, 14998, 14997, 14996, 14995, 14994, 14993, -14999, -14998, -14997, -14996, -14995, -14994, -14993]
+
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
     result = engine.analyse(board.copy(), chess.engine.Limit(depth = depth))
     score = result["score"].white().score(mate_score = score_max)
-    if str(score) in score_dict:
-        score = score_dict[f"{score}"]
+
+    # for high stockfish scores, check if it is a potential checkmate not detected by a depth of 0
+    if np.abs(score) > 5000 and np.abs(score) < 14000:
+        result_d5 = engine.analyse(board.copy(), chess.engine.Limit(depth = 5))
+        score_d5 = result_d5["score"].white().score(mate_score = score_max)
+        if score_d5 in score_list:
+            score = score_d5
+
     engine.quit()
     return(score)
 
@@ -232,7 +245,7 @@ def boards_random(num_boards):
 
     return(boards_random_int, boards_random_parameter, boards_random_score)
 
-def ai_board_score_pred(board, model):
+def ai_board_score_pred(board, model, jit_compilation):
     """
     Predicts the score of a board on the CNN model.
     Args:
@@ -244,63 +257,50 @@ def ai_board_score_pred(board, model):
     board_3d_int = [get_board_total(board.copy())]
     board_3d_int = np.moveaxis(board_3d_int, 1, -1)
     parameters = np.array([get_model_input_parameter(board.copy())])
-    prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
+    if jit_compilation == 1:
+        prediction_score = model([board_3d_int, parameters])[0][0].numpy() * 2 * score_max - score_max
+    else:
+        prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
+    return(prediction_score)
+
+def load_model(model_name, jit_compilation):
+    global model
+    model = models.load_model(f"model/{model_name}")
+    if jit_compilation == 1:
+        model = tf.function(model, jit_compile=True)
+
+def load_tablebase():
+    global tablebase
+    tablebase = chess.gaviota.open_tablebase("endgame/gaviota/data/")
+
+def ai_board_score_pred_parallel(board, model_name, jit_compilation):
+    """
+    Predicts the score of a board on the CNN model.
+    Args:
+        board (chess.Board): chess board
+        model (keras.model): CNN model
+    Returns:
+        float: predicted score of the input board
+    """
+    global model
+
+    # Load the model if it's not already loaded
+    if model is None:
+        # start = time.time()
+        load_model(model_name, jit_compilation)
+        # print("Time needed to load model:", time.time() - start)
+
+    board_3d_int = [get_board_total(board.copy())]
+    board_3d_int = np.moveaxis(board_3d_int, 1, -1)
+    parameters = np.array([get_model_input_parameter(board.copy())])
+    if jit_compilation == 1:
+        prediction_score = model([board_3d_int, parameters])[0][0].numpy() * 2 * score_max - score_max
+    else:
+        prediction_score = model.predict([board_3d_int, parameters], verbose = 0)[0][0] * 2 * score_max - score_max
     return(prediction_score)
 
 
-def minimax_parallel(board, model, depth, alpha, beta, maximizing_player, transposition_table, verbose_minimax = False):
-    if depth < 0 or type(depth) != int:
-        raise ValueError("Depth needs to be int and greater than 0")
-
-    # Check if the current game state is already in the transposition table
-    hash_value = board.fen()
-    if hash_value in transposition_table:
-        return(transposition_table[hash_value])
-
-    if depth == 0 or board.is_game_over() == True:
-        prediction = ai_board_score_pred(board.copy(), model)
- 
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = prediction
-        return(prediction)
-
-    # maximizing_player == True -> AI's turn
-    if maximizing_player == True:
-        evals = []
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, verbose_minimax)
-            board.pop()
-            evals.append(eval)
-        
-        evals = dask.compute(*evals, num_workers = 3)
-        # print("ai turn evals", evals)
-        argmax = np.argmax(evals)
-        max_eval = evals[argmax]
-        
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = max_eval
-        return(max_eval)
-
-    # maximizing_player == False -> player's turn
-    else:
-        evals = []
-        for valid_move in board.legal_moves:
-            board.push(valid_move)
-            eval = dask.delayed(minimax)(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, verbose_minimax)
-            board.pop()
-            evals.append(eval)            
-        
-        evals = dask.compute(*evals, num_workers = 3)
-        # print("players turn evals", evals)
-        argmin = np.argmin(evals)
-        min_eval = evals[argmin]
-        # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = min_eval
-        return(min_eval)
-
-
-def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_table, repetition, best_move = None, verbose_minimax = False):
+def minimax(board, depth, depth_max, alpha, beta, maximizing_player, transposition_table, repetition, multiprocessing = 0, jit_compilation = 0, best_move = None, tablebase = None, model = None, model_name = None, root_node = False):
     """
     Minimax algorithm with alpha-beta pruning, transposition table and move ordering
     Args:
@@ -312,7 +312,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         maximizing_player (bool): True if AI is playing, False if player is playing
         transposition_table (dict): transposition table
         best_move (chess.Move): best move
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
     Returns:
         float: evaluation of the board
         chess.Move: best move
@@ -325,8 +325,6 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
     hash_value = board.fen()[:-4] # ignore halmove clock and fullmove number
     if hash_value in transposition_table and not repetition and not board.is_repetition(2): # board.is_repetition(2) implemented to avoid draw by repetition by opponent
         entry = transposition_table[hash_value]
-        # print("hash_value", hash_value)
-        # print("transposition_table[hash_value]", transposition_table[hash_value])
         # Check if the stored depth is greater than or equal to the current depth
         if entry["depth"] >= depth:
             # Use the stored evaluation and best move
@@ -339,40 +337,114 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
             if alpha >= beta:
                 return entry["eval"], entry["best_move"]
 
+    if depth == 0 and board.is_check() and not board.is_game_over() and not (board.is_seventyfive_moves() or board.is_repetition(3)):
+        depth += 1
+
     if depth == 0 or board.is_game_over() or repetition:
-        if repetition:
-            print("repetition")
-        prediction = ai_board_score_pred(board.copy(), model)
         # analyse_stockfish = engine.analyse(board, chess.engine.Limit(depth = 0))
         # prediction = analyse_stockfish["score"].white().score(mate_score = score_max)
         # Add the current game state and its evaluation to the transposition table
-        transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": None}
-        # if board.is_game_over():
-        #     print(board)
-        #     print(board.fen())
-        #     print(np.array(get_board_total(board.copy())))
-        #     print(np.shape(get_board_total(board.copy())))
-        #     print(np.array(get_model_input_parameter(board.copy())))
-        #     print(np.shape(get_model_input_parameter(board.copy())))
-        #     print("prediction", prediction)
-        #     print("game over")
+
+        n_pieces = sum(1 for _ in board.piece_map())
+        if n_pieces > 5:
+            if multiprocessing == 1:
+                prediction = ai_board_score_pred_parallel(board.copy(), model_name, jit_compilation)
+            else:
+                prediction = ai_board_score_pred(board.copy(), model, jit_compilation)
+
+            # if board is a checkmate, give it a better score if depth is lower
+            if np.abs(prediction) > score_max - 3000:
+                prediction = np.sign(prediction) * score_max - np.sign(prediction) * (depth_max - 1 - depth)
+            else:
+                # only store non-checkmates in transposition table 
+                transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": best_move}
+
+        else:
+            wdl = tablebase.probe_wdl(board)
+
+            if wdl == 0 or repetition:
+                prediction = 0
+            else:
+                sign_turn = 1 if board.turn == True else -1
+                sign_wdl = np.sign(wdl)
+                sign_total = sign_turn * sign_wdl
+                dtm = np.abs(tablebase.probe_dtm(board))
+                prediction = sign_total * score_max - sign_total * (depth_max - 1 - depth + dtm)
+            
+            transposition_table[hash_value] = {"depth": depth, "flag": "exact", "eval": prediction, "ancient": len(transposition_table), "best_move": best_move}
+
         return(prediction, None)
 
     if maximizing_player:
         max_eval = -np.inf
+
+        # Null-move pruning: skip white turn and evaluate
+        n_white_pieces = sum(
+            1 for square, piece in board.piece_map().items() if piece.color == chess.WHITE
+            )
+        n_white_kings_pawns = sum(
+            1 for square, piece in board.piece_map().items() if piece.color == chess.WHITE and 
+            (piece.piece_type == chess.KING or piece.piece_type == chess.PAWN)
+            )
+        only_kings_pawns_left = n_white_kings_pawns == n_white_pieces
+
+        if depth >= 3 and not board.is_check() and not only_kings_pawns_left:
+            null_move_reduction = 2  # Depth reduction for null-move
+            board.push(chess.Move.null())  # Apply null move
+            repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
+            null_move_eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1 - null_move_reduction, 
+                depth_max = depth_max,
+                alpha = -beta, 
+                beta = beta + 1, 
+                maximizing_player = False, 
+                transposition_table = transposition_table, 
+                tablebase = tablebase,
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
+            board.pop()  # Undo null move
+
+            if null_move_eval >= beta:
+                return (null_move_eval, None)
+
         ordered_moves = order_moves(board, transposition_table)
-        if verbose_minimax == True:
+        if root_node == True:
             ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, False, transposition_table, repetition_update, best_move, verbose_minimax = False)
+
+            # if board.is_check() and not repetition_update and not board.is_game_over():
+            #     depth =+ 1
+
+            eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1, 
+                depth_max = depth_max,
+                alpha = alpha, 
+                beta = beta, 
+                maximizing_player = False, 
+                transposition_table = transposition_table, 
+                tablebase = tablebase,
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
             board.pop()
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
-                if depth == 3:
-                    print("best move", best_move, "max_eval", max_eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
                 break
@@ -389,25 +461,35 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return(max_eval, best_move)
 
     else:
-        # # Null move pruning
-        # if depth >= 2:
-        #     null_move = chess.Move.null()
-        #     board.push(null_move)
-        #     eval, _ = minimax(board.copy(), model, depth - 3, alpha, beta, True, transposition_table, best_move, verbose_minimax = False)
-        #     board.pop()
-        #     print("Null move pruning attempt")
-        #     print("beta", beta, "eval", eval)
-
-        #     if eval >= beta:
-        #         print("Null move pruning")
-        #         return beta
-        
         min_eval = np.inf
+        
         ordered_moves = order_moves(board, transposition_table)
+        if root_node == True:
+            ordered_moves = tqdm(ordered_moves)
         for move in ordered_moves:
             board.push(move)
             repetition_update = board.is_seventyfive_moves() or board.is_repetition(3)
-            eval, _ = minimax(board.copy(), model, depth - 1, alpha, beta, True, transposition_table, repetition_update, best_move, verbose_minimax = False)
+
+            # if board.is_check() and not repetition_update and not board.is_game_over():
+            #     depth =+ 1
+
+            eval, _ = minimax(
+                board = board.copy(), 
+                depth = depth - 1, 
+                depth_max = depth_max,
+                alpha = alpha, 
+                beta = beta, 
+                maximizing_player = True, 
+                transposition_table = transposition_table, 
+                tablebase = tablebase,
+                repetition = repetition_update, 
+                multiprocessing = multiprocessing, 
+                jit_compilation = jit_compilation, 
+                best_move = best_move, 
+                model = model, 
+                model_name = model_name, 
+                root_node = False
+            )
             board.pop()
             if eval < min_eval:
                 min_eval = eval
@@ -428,7 +510,7 @@ def minimax(board, model, depth, alpha, beta, maximizing_player, transposition_t
         return (min_eval, best_move)
 
 
-def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
+def get_ai_move(board, depth, depth_max, maximizing_player, transposition_table, tablebase, model, jit_compilation, multiprocessing):
     """
     Get the best move for the AI
     Args:
@@ -436,35 +518,85 @@ def get_ai_move(board, model, depth, transposition_table, verbose_minimax):
         model (keras.Model): neural network model
         depth (int): depth of the minimax algorithm
         transposition_table (dict): transposition table
-        verbose_minimax (bool): True if you want to print the progress of the minimax algorithm, False if not
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
     Returns:
         chess.Move: best move
         float: evaluation of the board
     """
     repetition = board.is_seventyfive_moves() or board.is_repetition(3)
-    max_eval, max_move = minimax(board.copy(), model, depth = depth, alpha = -np.inf, beta = np.inf, maximizing_player = True, transposition_table = transposition_table, repetition = repetition, best_move = None, verbose_minimax = verbose_minimax)
-
+    max_eval, max_move = minimax(
+        board = board.copy(), 
+        depth = depth, 
+        depth_max = depth_max,
+        alpha = -np.inf, 
+        beta = np.inf, 
+        maximizing_player = maximizing_player, 
+        transposition_table = transposition_table, 
+        tablebase = tablebase,
+        repetition = repetition, 
+        multiprocessing = multiprocessing, 
+        jit_compilation = jit_compilation, 
+        best_move = None, 
+        model = model, 
+        model_name = None, 
+        root_node = True
+    )
+    
     return(max_move, max_eval)
 
-def get_ai_move_parallel(board, model, depth, transposition_table, verbose_minimax):
-    max_move = None
-    max_eval = -np.inf
-    evals = []
-    start = time.time()
-    for valid_move in list(board.legal_moves):
-        board.push(valid_move)
-        # maximizing_player == False -> player's move because AI's (potential) move was just pushed
-        eval = dask.delayed(minimax)(board.copy(), model, depth = depth - 1, alpha = -np.inf, beta = np.inf, maximizing_player = False, transposition_table = transposition_table, verbose_minimax = verbose_minimax)
-        board.pop()
-        evals.append(eval)
-    with ProgressBar():
-        evals = dask.compute(*evals, num_workers = 3)
-    argmax = np.argmax(evals)
-    max_eval = evals[argmax]
-    max_move = list(board.legal_moves)[argmax]
 
-    print("time needed", time.time() - start)
-    return(max_move, max_eval)
+def get_ai_move_mp(board, depth, depth_max, dict_mp, maximizing_player, transposition_table, model_name, jit_compilation, multiprocessing, move):
+    """
+    Get the best move for the AI
+    Args:
+        board (chess.Board): chess board
+        model (keras.Model): neural network model
+        depth (int): depth of the minimax algorithm
+        transposition_table (dict): transposition table
+        root_node (bool): True if you want to print the progress of the minimax algorithm, False if not
+    Returns:
+        chess.Move: best move
+        float: evaluation of the board
+    """
+    global tablebase
+
+    if tablebase is None:
+        load_tablebase()
+
+    repetition = board.is_seventyfive_moves() or board.is_repetition(3)
+
+    board.push(move)
+    eval, _ = minimax(
+        board = board.copy(), 
+        depth = depth - 1, 
+        depth_max = depth_max,
+        alpha = dict_mp["alpha"], 
+        beta = dict_mp["beta"], 
+        maximizing_player = not maximizing_player, 
+        transposition_table = transposition_table, 
+        tablebase = tablebase,
+        repetition = repetition, 
+        multiprocessing = multiprocessing, 
+        jit_compilation = jit_compilation, 
+        best_move = None, 
+        model = None, 
+        model_name = model_name, 
+        root_node = False
+    )
+
+    board.pop()
+    
+    if maximizing_player:
+        if eval > dict_mp["max_eval"]:
+            dict_mp["max_eval"] = eval
+            dict_mp["best_move"] = move
+        dict_mp["alpha"] = max(dict_mp["alpha"], eval)
+    else:
+        if eval < dict_mp["min_eval"]:
+            dict_mp["min_eval"] = eval
+            dict_mp["best_move"] = move
+        dict_mp["beta"] = min(dict_mp["beta"], eval)
+
 
 def save_board_png(board, game_name, counter):
     """
@@ -508,7 +640,7 @@ def save_board_gif(boards_png, game_name):
         im = ax.imshow(board_png)
         ims.append([im])
     ani = animation.ArtistAnimation(fig, ims, interval = 1000)
-    ani.save(f"games/{game_name}/board.gif")
+    ani.save(f"games/{game_name}/game.gif")
 
     os.system(f"rm games/{game_name}/*.png")
 
@@ -527,7 +659,7 @@ def get_valid_moves(board):
     valid_moves_str = [valid_moves[i].uci() for i in range(len(valid_moves))]
     return(valid_moves, valid_moves_str)
 
-def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
+def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai, depth, colour_player):
     """
     Get best stockfish move, stockfish score of the stockfish move, all valid moves sorted by stockfish score and ranking of the best ai move
 
@@ -546,8 +678,11 @@ def get_stockfish_move(board, valid_moves, valid_moves_str, best_move_ai):
     stockfish_scores = []
     for i in range(len(valid_moves)):
         board.push(valid_moves[i])
-        result = engine.analyse(board, chess.engine.Limit(depth = 0))
-        stockfish_score = result["score"].white().score(mate_score = score_max)
+        result = engine.analyse(board, chess.engine.Limit(depth = depth - 1))
+        if colour_player == "b":
+            stockfish_score = result["score"].white().score(mate_score = score_max)
+        else:
+            stockfish_score = result["score"].black().score(mate_score = score_max)
         stockfish_scores.append(stockfish_score)
 
         board.pop()
@@ -580,7 +715,7 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
         board_fen (str): chess board in FEN format
     """
     dict_pieces = np.array(["P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"])
-    dict_turn = np.array(["b", "w"]) # or vice versa?
+    dict_turn = np.array(["b", "w"]) 
     board_int_pieces = board_int[0:number_boards_pieces]
 
     board_fen = ""
@@ -776,11 +911,11 @@ def save_examples(table, name):
     print("Saving examples...")
     os.system(f"rm evaluation/{name}/examples/*")
 
-    model = models.load_model(f"model/model_{name}.h5")
+    # model = models.load_model(f"model/model_{name}.h5")
 
-    for layer in model.layers:
-        if "conv" in layer.name:
-            last_conv_layer_name = layer.name
+    # for layer in model.layers:
+    #     if "conv" in layer.name:
+    #         last_conv_layer_name = layer.name
 
     for i in range(len(table)):
         board = chess.Board(table["board (FEN)"][i])
@@ -806,6 +941,10 @@ def save_examples(table, name):
         outputfile.close()
         os.system("convert -density 1200 -resize 780x780 " + path + ".svg " + path + ".png")
         os.system("rm " + path + ".svg")
+
+        # TO DO: check why there is an invalid fen board in the example table of -na test / test2
+
+        print(board)
 
         X_board3d = get_board_total(board.copy())
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
@@ -954,24 +1093,6 @@ def get_board_parameters(board):
         castling_right_queen_side_black
         )
 
-# def get_board_pinned(board):
-#     """
-#     Returns board of pinned black and white pieces
-
-#     Args:
-#         board (chess.Board): chess board
-
-#     Returns:
-#         list (8, 8): list of a board with pinned black and white pieces
-#     """
-#     board_pinned = np.zeros((8, 8), dtype = int)
-#     for square in chess.SQUARES:
-#         if (board.is_pinned(chess.WHITE, square) == True) or (board.is_pinned(chess.BLACK, square) == True):
-#             board_index = square_to_index(square)
-#             board_pinned[board_index[0]][board_index[1]] = 1
-#     # board_pinned = board_pinned.tolist()
-
-#     return(board_pinned)
 
 def get_board_pinned(board):
     """
@@ -983,21 +1104,21 @@ def get_board_pinned(board):
     Returns:
         list (4, 8, 8): list of a board with pinned black and white pieces
     """
-    number_boards = 4
+    number_boards = 2
     board_pinned = np.zeros((number_boards, 8, 8), dtype = int)
     for square in chess.SQUARES:
         if (board.is_pinned(chess.WHITE, square) == True) and (board.color_at(square) == chess.WHITE):
             board_index = square_to_index(square)
             board_pinned[0][board_index[0]][board_index[1]] = 1
-        if board.is_pinned(chess.WHITE, square) == True:
-            board_index = square_to_index(square)
-            board_pinned[1][board_index[0]][board_index[1]] = 1
+        # if board.is_pinned(chess.WHITE, square) == True:
+        #     board_index = square_to_index(square)
+        #     board_pinned[1][board_index[0]][board_index[1]] = 1
         if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
             board_index = square_to_index(square)
-            board_pinned[2][board_index[0]][board_index[1]] = 1
-        if board.is_pinned(chess.BLACK, square) == True:
-            board_index = square_to_index(square)
-            board_pinned[3][board_index[0]][board_index[1]] = 1
+            board_pinned[1][board_index[0]][board_index[1]] = 1
+        # if board.is_pinned(chess.BLACK, square) == True:
+        #     board_index = square_to_index(square)
+        #     board_pinned[3][board_index[0]][board_index[1]] = 1
 
     # board_pinned = board_pinned.tolist()
 
@@ -1287,7 +1408,7 @@ def get_board_3d_pawn_move(board):
 
 def get_board_total(board):
     """
-    converts chess board into 3D (32, 8, 8) list with board[i] representing:
+    converts chess board into 3D (30, 8, 8) list with board[i] representing:
     0: all squares covered by white pawn
     1: all squares covered by white knight
     2: all squares covered by white bishop
@@ -1315,17 +1436,15 @@ def get_board_total(board):
     24: all squares being a potential move by white pawns
     25: all squares being a potential move by black pawns
     26: all squares being pinned by white with a white piece or pawn on that square
-    27: all squares being pinned by white
-    28: all squares being pinned by black with a black piece or pawn on that square
-    29: all squares being pinned by black
-    30: all squares being possible en passant moves for white
-    31: all squares being possible en passant moves for black
+    27: all squares being pinned by black with a black piece or pawn on that square
+    28: all squares being possible en passant moves for white
+    29: all squares being possible en passant moves for black
 
     Args:
         board (chess.Board): chess board
 
     Returns:
-        list: (32, 8, 8) list of the input board
+        list: (30, 8, 8) list of the input board
     """
     board_pieces = get_board_3d_pieces(board.copy())
     board_pawn_move = get_board_3d_pawn_move(board.copy())
@@ -1411,17 +1530,17 @@ def get_model_input_parameter(board):
     return(
         turn,
         halfmove_clock, 
+        check, 
+        checkmate, 
+        stalemate,
         insufficient_material_white, 
         insufficient_material_black, 
         seventyfive_moves, 
         fivefold_repetition, 
+        castling_right_queen_side_white,
         castling_right_king_side_white, 
-        castling_right_queen_side_white, 
-        castling_right_king_side_black, 
         castling_right_queen_side_black,
-        check, 
-        checkmate, 
-        stalemate
+        castling_right_king_side_black
         )
 
 def setup_logging(dt_string):
@@ -1496,6 +1615,10 @@ def order_moves(board, transposition_table):
             score = position_score(board, move)
             data.append([move, False, False, False, True, score])
 
+    # print("-----------------------------------")
+    # print("order_moves function")
+    # print(data)
+    # print(data)
     table = pd.DataFrame(data = data, columns = ["move", "TT", "check", "capture", "position", "score"])
     table = table.sort_values(by = ["TT", "check", "capture", "position", "score"], ascending = False)
     moves = table["move"].to_numpy()
@@ -1552,3 +1675,44 @@ def position_score(board, move):
         position_score += 1
 
     return(position_score)
+
+def score_resolution(table, name):
+    print("Plotting score resolution...")
+    score_min, score_max = -15000, 15000
+    bins = np.linspace(score_min, score_max, 9)
+    bins_central = (bins[1:] + bins[:-1]) / 2
+    sigmas = []
+
+    print(table)
+
+    fig, ax = plt.subplots(3, 3, figsize = (20, 20))
+    ax = ax.ravel()
+    for i in range(len(bins) - 1):
+        print("bin", bins[i], bins[i + 1])
+        table_bin = table[(table["true score"] >= bins[i]) & (table["true score"] < bins[i + 1])]
+        print("number boards", len(table_bin))
+
+        delta_score = (table_bin["predicted score"] - table_bin["true score"]) #/ table_bin["true score"]
+        score_median = np.median(delta_score)
+        delta_score_corrected = np.abs(delta_score - score_median)
+        delta_score_corrected = np.sort(delta_score_corrected)
+        index_68 = int(len(delta_score_corrected) * 0.68)
+        sigma = delta_score_corrected[index_68]
+        sigmas.append(sigma)
+
+        ax[i].hist(delta_score, bins = 10)
+        ax[i].set_title(f"Bin {i + 1}: {bins[i]:.2f} - {bins[i + 1]:.2f}")
+    ax[-2].set_xlabel("Score error")
+    ax[3].set_ylabel("Number of boards")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/hist_delta_score_binned_{name}.pdf", dpi = 300)
+    plt.close()
+
+    plt.figure()
+    plt.plot(bins_central, sigmas)
+    plt.xlabel("Score")
+    plt.ylabel("Score error (68%)")
+    plt.tight_layout()
+    plt.savefig(f"evaluation/{name}/score_error_{name}.pdf", dpi = 300)
+    plt.close()
+

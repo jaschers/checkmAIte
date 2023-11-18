@@ -35,7 +35,7 @@ for filename in filenames:
     count_total = 0
 
     for line in tqdm(file):
-        if int(filename_id) >= 1 and int(filename_subid) >= 0:
+        if (int(filename_id) == 0 and int(filename_subid) >= 0) or int(filename_id) > 0:
             board_fen, _ = line.split("; ")
             board = chess.Board(board_fen)
 
@@ -45,8 +45,9 @@ for filename in filenames:
 
         count += 1
         count_total += 1
-        if count == 10000 or count_total == num_lines:
-            if int(filename_id) >= 1 and int(filename_subid) >= 0:
+        
+        if count == 10000:
+            if (int(filename_id) == 0 and int(filename_subid) >= 0) or int(filename_id) > 0:
                 boards_random_parameter = np.array(boards_random_parameter)
 
                 df1 = pd.DataFrame({"board3d": boards_random_int})
@@ -70,12 +71,12 @@ for filename in filenames:
 
                 print(table)
 
-                os.makedirs("data/3d/32_8_8_depth0_ms15000_human/", exist_ok = True)
+                os.makedirs("data/3d/30_8_8_depth0_ms15000_human/", exist_ok = True)
 
-                table.to_hdf(f"data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5", key = "table")
-                print(f"save table to data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
+                table.to_hdf(f"data/3d/30_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5", key = "table")
+                print(f"save table to data/3d/30_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
             else:
-                print(f"skip extracting file data/3d/32_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
+                print(f"skip extracting file data/3d/30_8_8_depth0_ms15000_human/data{filename_id}-{filename_subid}.h5")
 
             count = 0
             filename_subid += 1
