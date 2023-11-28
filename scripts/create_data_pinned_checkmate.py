@@ -53,7 +53,7 @@ def boards_pinned_checkmate(num_boards):
 
     return(boards_pinned_checkmate_int, boards_pinned_checkmate_parameter, boards_pinned_checkmate_score)
 
-dir_pinned_checkmate = "data/3d/30_8_8_pinned_checkmate/"
+dir_pinned_checkmate = "data/30_8_8_pinned_checkmate/"
 os.makedirs(dir_pinned_checkmate, exist_ok = True)
 
 number_runs = 100

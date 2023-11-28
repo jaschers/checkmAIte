@@ -50,7 +50,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
     for run in range(num_runs):
         print(f"Loading data run {run}...")
         start = time.time()
-        table_run = pd.read_hdf(f"data/3d/{name_data}_mm100_ms15000/data{run}.h5", key = "table")
+        table_run = pd.read_hdf(f"data/{name_data}_mm100_ms15000/data{run}.h5", key = "table")
         middle = time.time()
         frame = [table, table_run]
         table = pd.concat(frame)
@@ -58,7 +58,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
         print(f"Memory usage after loading table run {run}:", np.round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2), "MiB")
         print(f"Data run {run} loaded in {np.round(middle-start, 1)} sec...")
 
-    dir_human = f"data/3d/{name_data}_ms15000_human/"
+    dir_human = f"data/{name_data}_ms15000_human/"
     filenames = glob.glob(dir_human + "*")
     filenames = np.sort(filenames)
     filenames = filenames[:int(num_runs_huma)]
@@ -74,7 +74,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
         print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
 
     if read_draw == "y":
-        dir_draw = "data/3d/30_8_8_draw/"
+        dir_draw = "data/30_8_8_draw/"
         filenames = glob.glob(dir_draw + "*")
         filenames = np.sort(filenames)
 
@@ -89,7 +89,7 @@ def load_data(num_runs, name_data, score_cut, num_runs_huma, read_draw, read_pin
             print(f"Data file {filename} loaded in {np.round(middle-start, 1)} sec...")
     
     if read_pinned == "y":
-        dir_pinned = "data/3d/30_8_8_pinned_checkmate/"
+        dir_pinned = "data/30_8_8_pinned_checkmate/"
         filenames = glob.glob(dir_pinned + "*")
         filenames = np.sort(filenames)
 
@@ -172,10 +172,7 @@ def get_extreme_predictions(prediction_val, true_score_val, X_board3d, X_paramet
 
     print(table)
 
-    # os.makedirs(f"evaluation/{name}/examples", exist_ok = True)
     table.to_hdf(f"prediction/{name}/examples_{name}.h5", key = "table")
-
-    # table.to_hdf(f"evaluation/{name}/examples/examples_{name}.h5", key = "table")
 
 def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en_passant, halfmove_clock, fullmove_number):
     """Converts a n-dimensional list of the chess board back to its FEN format
@@ -238,25 +235,6 @@ def convert_board_int_to_fen(board_int, number_boards_pieces, turn, castling, en
     
     return(board_fen)
 
-
-# # generate batches of data from our dask dataframe
-# def dask_data_generator(X_board3d, X_parameter, Y, dataset_size, batch_size):
-#     while True:
-#         start = time.time()
-
-#         sample_indices = np.random.choice(dataset_size, size = batch_size, replace=False)
-#         sample_indices = np.sort(sample_indices)
-        
-#         X_board3d_batch = da.take(X_board3d, sample_indices, axis = 0)
-#         X_parameter_batch = da.take(X_parameter, sample_indices, axis = 0)
-#         Y_batch = da.take(Y, sample_indices, axis = 0)
-
-#         end = time.time()
-
-#         print(f"\nBatch loaded in {end-start} sec...")
-#         print("Memory usage after loading batch:", psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MiB")
-
-#         yield([X_board3d_batch.compute(), X_parameter_batch.compute()], Y_batch.compute())
 
 def dask_data_generator(X_board3d, X_parameter, Y, dataset_size, batch_size):
     start = 0

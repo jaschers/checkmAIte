@@ -4,21 +4,31 @@ import pandas as pd
 import os
 import numpy as np
 import sys
+import argparse
 
 np.set_printoptions(threshold=sys.maxsize)
 
-# to be added:
-# set stockfish depth
-# set stockfish skill level
-# set stockfish time limit
-number_runs = 500 # 60
-for run in range(number_runs):
-    run = run + 46
+######################################## argparse setup ########################################
+script_descr="""
+Creates training data for the neural network based on random moves. The data consists of 3D chess boards, secondary information such as the castling rights, and the stockfish evaluation of the board. The data is stored in HDF5 format in the data/ directory.
+"""
+
+# Open argument parser
+parser = argparse.ArgumentParser(description=script_descr)
+
+# Define expected arguments
+parser.add_argument("-nr", "--number_runs", type = int, required = True, metavar = "-", help = "Number of runs that are going to be extracted.")
+parser.add_argument("-nb", "--number_boards", type = int, metavar = "-", help = "Number of boards that are going to be extracted for each run. Default: 10000", default = 10000)
+parser.add_argument("-sr", "--starting_run", type = int, metavar = "-", help = "Starting run id. If, e.g. 10 runs have already been extracted, use -sr 10 to extract avoid overwriting the old data. Default: 0", default = 0)
+
+args = parser.parse_args()
+##########################################################################################
+
+for run in range(args.number_runs):
+    run = run + args.starting_run
     print(f"Processing run {run}...")
     # create random chess boards in "chess" and integer format
-    boards_random_int, boards_random_parameter, boards_random_score = boards_random(num_boards = 10000) #10000
-
-    print(type(boards_random_int))
+    boards_random_int, boards_random_parameter, boards_random_score = boards_random(num_boards = args.number_boards)
 
     df1 = pd.DataFrame({"board3d": boards_random_int})
     df2 = pd.DataFrame({"player move": boards_random_parameter[:,0]})
@@ -40,11 +50,9 @@ for run in range(number_runs):
     table = pd.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11, df12, df13, df14, df15, df16], axis = 1)
 
     print(table)
-    print(np.shape(table["board3d"][0]))
-    # print(np.array(table["board3d (int)"][0]))
 
-    os.makedirs("data/3d/30_8_8_depth0_mm100_ms15000/", exist_ok = True)
+    os.makedirs("data/30_8_8_depth0_mm100_ms15000/", exist_ok = True)
 
-    table.to_hdf(f"data/3d/30_8_8_depth0_mm100_ms15000/data{run}.h5", key = "table")
+    table.to_hdf(f"data/30_8_8_depth0_mm100_ms15000/data{run}.h5", key = "table")
 
-    end = time.time()
+    print(f"Run {run} saved in data/30_8_8_depth0_mm100_ms15000/data{run}.h5")

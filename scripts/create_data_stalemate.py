@@ -39,7 +39,7 @@ def boards_stalemate(num_boards):
 
     return(boards_stalemate_int, boards_stalemate_parameter, boards_stalemate_score)
 
-dir_stalemate = "data/3d/30_8_8_draw/"
+dir_stalemate = "data/30_8_8_draw/"
 os.makedirs(dir_stalemate, exist_ok = True)
 
 number_runs = 3
