@@ -35,3 +35,4 @@ endgame/.*
 endgame/Gaviota*
 visuals/.*
 visuals/old
+.gitignore
