@@ -22,7 +22,8 @@ NOTE: Stockfish is only required if you want to extract the training data for th
 * go into the checkmAIte directory
 * create the virtual environment using the ```environment.yml``` file with ```conda env create --name checkmaite --file=environment.yml``` (or install all the dependencies manually with ```pip install -r requirements.txt```)
 * activate the environment with ```conda activate checkmaite```
-* Unzip the Gaviota.zip file and copy all the files within that folder into the ```endgame/gaviota/data``` directory.
+* Create the ```data/```, ```model/``` and ```endgame/gaviota/data``` directories via ```mkdir data/ model/ endgame/gaviota/data/```.
+* Unzip the Gaviota.zip file from [here](https://archive.org/details/Gaviota) and copy all the files within that folder into the ```endgame/gaviota/data``` directory.
 
 #### Optional:
 
@@ -37,7 +38,7 @@ Human games
 * Unzip the file. This will create a ```data/human_games/``` directory with multiple ```.epd``` files.
 
 ## Usage
-If you immediatly like to play against CheckmAIte proceed to Section "Play against CheckmAIte
+If you would immediatly like to play against CheckmAIte proceed to Section "Play against CheckmAIte
 ". If you want to extract your own training data and train a neural network on your own, you can proceed as follows.
 
 NOTE: Each script in the ```scripts/``` directory has a ```-h``` option to get furhter informations about the script and its input parameters. Simply run ```python scripts/<script_name>.py -h```.
