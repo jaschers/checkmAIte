@@ -35,7 +35,7 @@ Play a game against CheckmAIte
 parser = argparse.ArgumentParser(description=script_descr)
 
 # Define expected arguments
-parser.add_argument("-na", "--model_name", type = str, metavar = "-", default = "model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5", help = "Name of the neural network model located in the model/ directory, default: model_30_8_8_depth0_mm100_ms15000_ResNet512_sc9000-14000_r400_rh350_rd9_rp100_exp1.h5")
+parser.add_argument("-na", "--model_name", type = str, metavar = "-", default = "model_resnet.h5", help = "Name of the neural network model located in the model/ directory, default: model_resnet.h5")
 parser.add_argument("-c", "--colour", type = str, metavar = "-", default = "b", help = "Colour you would like to play with (w or b), default: b")
 parser.add_argument("-d", "--depth", type = int, metavar = "-", default = 3, help = "Depth of the minimax algorithm, default: 3")
 parser.add_argument("-v", "--verbose", type = int, metavar = "-", default = 1, help = "Verbose 0 (off) or 1 (on), default: 1")
