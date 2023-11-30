@@ -177,7 +177,7 @@ python scripts/game.py -na model_resnet.h5 -d 3 -jit 1 -mp 1 -c w -v 0 -so 0
 
 This will start an GUI with a chess board. You can drag and drop the pieces to your desired position to make a move. Afterwards, CheckmAIte will make a move.
 
-In this specific example, CheckmAIte will use the model ```model/model_resnet.h5```, a depth of 3 for the minimax algorithm, just-in-time processing and multiprocessing to speed up the calculations and let you play as the colour white. Additionally, the verbose option is turned off (make sure to properly install stockfish on your device if you want to turn it on). Depending on your setup and device, the ```--jit_compilation```, ```--multiprocessing``` and ```--sound``` option may cause the script to fail. If so, it is recommended to turn them off. A higher ```--depth``` value will make CheckmAIte stronger but also increases the computation time needed to make a move.
+In this specific example, CheckmAIte will use the model ```model/model_resnet.h5```, a depth of 3 for the minimax algorithm, just-in-time processing and multiprocessing to speed up the calculations and let you play as the colour white. Additionally, the verbose option is turned off (make sure to properly install stockfish on your device if you want to turn it on). Depending on your setup and device, the ```--jit_compilation``` and ```--multiprocessing``` options may cause the script to fail. If so, it is recommended to turn them off. A higher ```--depth``` value will make CheckmAIte stronger but also increases the computation time needed to make a move.
 
 Good luck and have fun!
 
