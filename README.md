@@ -22,8 +22,8 @@ NOTE: Stockfish is only required if you want to extract the training data for th
 * go into the checkmAIte directory
 * create the virtual environment using the ```environment.yml``` file with ```conda env create --name checkmaite --file=environment.yml``` (or install all the dependencies manually with ```pip install -r requirements.txt```)
 * activate the environment with ```conda activate checkmaite```
-* Create the ```data/```, ```model/``` and ```endgame/gaviota/data``` directories via ```mkdir data/ model/ endgame/gaviota/data/```.
-* Unzip the Gaviota.zip file from [here](https://archive.org/details/Gaviota) and copy all the files within that folder into the ```endgame/gaviota/data``` directory.
+* Create the ```data/```, ```model/``` and ```endgame/gaviota/data``` directories via ```mkdir -p data/ model/ endgame/gaviota/data/```.
+* Unzip the Gaviota.zip file downloaded from [here](https://archive.org/details/Gaviota) and copy all the files within that folder into the ```endgame/gaviota/data``` directory.
 
 #### Optional:
 
@@ -172,7 +172,7 @@ python scripts/train_model.py -r 100 -rh 100 -rd y -e 50 -bs 32 -af mse -ne resn
 If you did not train the model on your own, you can download a pretrained model [here](https://drive.google.com/file/d/191NBt-cCkAv7UvxaaANC8jwg7qKXXpYW/view?usp=sharing) and copy it into the model/ directory. In order to start a game against CheckmAIte, run the following command:
 
 ```
-python scripts/game.py -mn model_resnet.h5 -d 3 -jit 1 -mp 1 -c w -v 0 
+python scripts/game.py -na model_resnet.h5 -d 3 -jit 1 -mp 1 -c w -v 0 -so 0
 ```
 
 This will start an GUI with a chess board. You can drag and drop the pieces to your desired position to make a move. Afterwards, CheckmAIte will make a move.
