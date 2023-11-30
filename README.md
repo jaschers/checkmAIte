@@ -7,7 +7,7 @@ CheckmAIte is a chess engine based on a convolutional neural network and a minim
 ## Demo
 <img src="https://github.com/jaschers/checkmAIte/blob/main/visuals/board.gif" width="350">
 
-Here's a demo of the CheckmAIte (white) winning against a 2500 elo chess bot on chess.com, called Danny-bot (black). The game was played on my chess.com account and can be found [here](https://www.chess.com/analysis/library/3or7E8zuS6). In this game, a depth of 5 was used for the minimax algorithm of CheckmAIte. CheckmAIte is fully based on Python.
+Here's a demo of the CheckmAIte (white) winning against a 2500 elo chess bot on chess.com, called Danny-bot (black). In this game, a depth of 5 was used for the minimax algorithm of CheckmAIte. CheckmAIte is fully based on Python.
 
 ## Requirements
 * Python 3.7+
