@@ -911,12 +911,6 @@ def save_examples(table, name):
     print("Saving examples...")
     os.system(f"rm evaluation/{name}/examples/*")
 
-    # model = models.load_model(f"model/model_{name}.h5")
-
-    # for layer in model.layers:
-    #     if "conv" in layer.name:
-    #         last_conv_layer_name = layer.name
-
     for i in range(len(table)):
         board = chess.Board(table["board (FEN)"][i])
         boardsvg = chess.svg.board(board = board.copy())
@@ -949,25 +943,6 @@ def save_examples(table, name):
         X_board3d = get_board_total(board.copy())
         X_board3d = np.array([np.moveaxis(X_board3d, 0, -1)])
         X_parameter = np.array([get_model_input_parameter(board.copy())])
-
-        # heatmap = make_gradcam_heatmap([X_board3d, X_parameter], model, last_conv_layer_name)
-
-        # # save heatmap
-        # plt.figure()
-        # plt.matshow(heatmap, cmap = "gnuplot")
-        # plt.axis("off")
-        # plt.savefig(path + "_heatmap.png", bbox_inches = "tight", pad_inches = 0.15, dpi = 194.2)
-        # plt.close()
-
-        # plt.figure()
-        # img_heatmap = plt.imread(path + "_heatmap.png")
-        # img_board = plt.imread(path + ".png")
-        # plt.imshow(img_board, interpolation = "nearest")
-        # plt.imshow(img_heatmap, alpha = 0.7, interpolation = "nearest")
-        # plt.axis("off")
-        # plt.savefig(path + "_gradcam.png", bbox_inches="tight", pad_inches = 0, dpi = 211.2)
-
-        # os.system("rm " + path + "_heatmap.png")
 
         plt.close("all")
 
@@ -1016,9 +991,6 @@ def make_gradcam_heatmap(img, model, last_conv_layer_name, pred_index=None):
     # This is the gradient of the output neuron (top predicted or chosen)
     # with regard to the output feature map of the last conv layer
     grads = tape.gradient(class_channel, last_conv_layer_output)
-    # print(grads)
-    # print(np.min(grads), np.max(grads))
-    # print(np.shape(grads))
 
     # This is a vector where each entry is the mean intensity of the gradient
     # over a specific feature map channel
@@ -1110,17 +1082,10 @@ def get_board_pinned(board):
         if (board.is_pinned(chess.WHITE, square) == True) and (board.color_at(square) == chess.WHITE):
             board_index = square_to_index(square)
             board_pinned[0][board_index[0]][board_index[1]] = 1
-        # if board.is_pinned(chess.WHITE, square) == True:
-        #     board_index = square_to_index(square)
-        #     board_pinned[1][board_index[0]][board_index[1]] = 1
+
         if (board.is_pinned(chess.BLACK, square) == True) and (board.color_at(square) == chess.BLACK):
             board_index = square_to_index(square)
             board_pinned[1][board_index[0]][board_index[1]] = 1
-        # if board.is_pinned(chess.BLACK, square) == True:
-        #     board_index = square_to_index(square)
-        #     board_pinned[3][board_index[0]][board_index[1]] = 1
-
-    # board_pinned = board_pinned.tolist()
 
     return(board_pinned)
 
@@ -1143,7 +1108,6 @@ def get_board_en_passant(board):
         else:
             board_index = square_to_index(board.ep_square)
             board_en_passant[1][board_index[0]][board_index[1]] = 1
-    # board_en_passant = board_en_passant.tolist()
 
     return(board_en_passant)
 
@@ -1218,57 +1182,31 @@ def get_board_3d_attacks(board):
 
     # get king positions
     king_pos_white, king_pos_black = board.king(chess.WHITE), board.king(chess.BLACK)
-    # print("king_pos_white, king_pos_black")
-    # print(king_pos_white, king_pos_black)
-    # for loop over all piece types (pawn, knight, ...)
+
     for piece in chess.PIECE_TYPES:
         # for loop over all squares of white pieces
         for square in board.pieces(piece, chess.WHITE):
             # make black king "invisible" by removing him from the board
-            # print("before remove white")
-            # print(board)
-            # print("_____________")
             board.remove_piece_at(king_pos_black)
-            # print("after remove white")
-            # print(board)
-            # print("_____________")
             # get squares that are attacked by the piece
             attacks_squares = list(board.attacks(square))
             for attack_square in attacks_squares:
                 board_index = square_to_index(attack_square)
                 board_attacks[piece - 1][board_index[0]][board_index[1]] += 1
             # add black king back to the board
-            # print("before set piece at white")
-            # print(board)
-            # print("_____________")
             board.set_piece_at(chess.Square(king_pos_black), chess.Piece(chess.KING, chess.BLACK))
-            # print("after set piece at white")
-            # print(board)
-            # print("_____________")
         # for loop over all squares of black pieces
         for square in board.pieces(piece, chess.BLACK):
             # make white king "invisible" by removing him from the board
-            # print("before remove black")
-            # print(board)
-            # print("_____________")
             board.remove_piece_at(king_pos_white)
-            # print("after remove black")
-            # print(board)
-            # print("_____________")
             # get squares that are attacked by the piece
             attacks_squares = list(board.attacks(square))
             for attack_square in attacks_squares:
                 board_index = square_to_index(attack_square)
                 board_attacks[piece - 1 + 6][board_index[0]][board_index[1]] += 1
             # add black white back to the board
-            # print("before set piece at black")
-            # print(board)
-            # print("_____________")
             board.set_piece_at(chess.Square(king_pos_white), chess.Piece(chess.KING, chess.WHITE))
-            # print("after set piece at black")
-            # print(board)
-            # print("_____________")
-    # board_attacks = board_attacks.tolist()
+
     return(board_attacks)
 
 def get_board_3d_2nd_attacks(board):
@@ -1292,33 +1230,20 @@ def get_board_3d_2nd_attacks(board):
     Returns:
         list: (12, 8, 8) list of the input board with values {0, 1, 2} which represent the number of attacks per piece
     """
-    # print("get_board_3d_2nd_attacks beginning")
-    # print(board)
     # initialise board array
     number_boards = 12
     board_2nd_attacks = np.zeros((number_boards, 8, 8), dtype = int)
 
     # get original board turn
     turn = board.turn
-    # print("original turn")
-    # print(turn)
 
     # get 2nd attacks for white
     board.turn = chess.WHITE
 
     valid_moves = list(board.legal_moves)
-    # print("valid_moves white")
-    # print(valid_moves)
+
     for move in valid_moves:
-        # print("get_board_3d_2nd_attacks before move white")
-        # print(board)
-        # print("move white")
-        # print(move)
-        # print(board.is_legal(move))
         board.push(move)
-        # print("get_board_3d_2nd_attacks after move white")
-        # print(board)
-        # print("Is board valid?", board.is_valid())
         if board.is_valid() == False:
             board.pop()
         else:
@@ -1335,18 +1260,8 @@ def get_board_3d_2nd_attacks(board):
     board.turn = chess.BLACK
 
     valid_moves = list(board.legal_moves)
-    # print("valid_moves black")
-    # print(valid_moves)
     for move in valid_moves:
-        # print("get_board_3d_2nd_attacks before move black")
-        # print(board)
-        # print("move black")
-        # print(move)
-        # print(board.is_legal(move))
         board.push(move)
-        # print("get_board_3d_2nd_attacks after move black")
-        # print(board)
-        # print("Is board valid?", board.is_valid())
         if board.is_valid() == False:
             board.pop()
         else:
@@ -1365,9 +1280,6 @@ def get_board_3d_2nd_attacks(board):
 
     # put turn back to original 
     board.turn = turn
-
-    # print("get_board_3d_2nd_attacks end")
-    # print(board)
 
     return(board_2nd_attacks)
 
@@ -1462,31 +1374,6 @@ def get_board_total(board):
     
     board_total = board_total.tolist()
     return(board_total)
-
-# def get_model_input_parameter(board):
-#     """
-#     Returns neural network input parameters from a given board.
-
-#     Args:
-#         board (chess.Board): chess board
-    
-#     Returns:
-#         tuple: (10,) of:
-#             bool: side to move (True = white, False = black)
-#             int: halfmove clock number
-#             bool: checks if white has insufficient winning material
-#             bool: checks if black has insufficient winning material
-#             bool: checks seventy-five-move rule
-#             bool: checks fivefold repetition
-#             bool: checks castling right king side of white
-#             bool: checks castling right queen side of white
-#             bool: checks castling right king side of black
-#             bool: checks castling right queen side of black
-#     """
-#     X_parameter = get_board_parameters(board.copy())
-#     # X_parameter = X_parameter[:2] + X_parameter[6:]
-#     X_parameter = np.delete(X_parameter, 2)
-#     return(X_parameter)
 
 def get_model_input_parameter(board):
     """
@@ -1615,10 +1502,6 @@ def order_moves(board, transposition_table):
             score = position_score(board, move)
             data.append([move, False, False, False, True, score])
 
-    # print("-----------------------------------")
-    # print("order_moves function")
-    # print(data)
-    # print(data)
     table = pd.DataFrame(data = data, columns = ["move", "TT", "check", "capture", "position", "score"])
     table = table.sort_values(by = ["TT", "check", "capture", "position", "score"], ascending = False)
     moves = table["move"].to_numpy()

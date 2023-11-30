@@ -11,11 +11,11 @@ parameters_short_name = ['sfmoves', 'ffrep']
 n_files_per_para = 3
 # n_copies = len(parameters) * n_files_per_para
 
-dir_human = "data/3d/30_8_8_depth0_ms15000_human/"
+dir_human = "data/30_8_8_depth0_ms15000_human/"
 filenames = glob.glob(dir_human + "*")
 filenames = np.sort(filenames)
 
-dir_draw = "data/3d/30_8_8_draw/"
+dir_draw = "data/30_8_8_draw/"
 os.makedirs(dir_draw, exist_ok = True)
 
 count = 0
